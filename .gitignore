@@ -127,3 +127,7 @@ performance_logs.jsonl
 adherence_logs.jsonl
 internal_performance.jsonl
 constraint_violations.log
+
+# Runtime files
+*.pid
+*.cmd

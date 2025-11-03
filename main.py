@@ -1,4 +1,9 @@
+import sys
+import os
 import time
+import json
+import signal
+from my_son.daemon import daemonize
 from my_son.firebase.firebase_client import FirebaseClient
 from my_son.agent.agent import Agent
 from my_son.data_analysis.hva import HVAPrioritization
@@ -9,98 +14,203 @@ from my_son.action_generation.review import ReviewModule
 from my_son.self_improvement.reflection import ReflectionModule
 from my_son.meta_efficiency.rac import ResourceAllocationCritic
 from my_son.meta_efficiency.rewrite import CodeRewriteFunction
+from my_son.system_monitor import SystemMonitor
+from my_son.learning.ingestion import KnowledgeIngestionEngine
+from my_son.learning.curriculum import CurriculumGenerator
+from my_son.learning.mastery import MasteryVerificationProtocol
+
+# Use absolute paths for all files to avoid issues when daemonized
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+PID_FILE = os.path.join(APP_DIR, 'my_son.pid')
+LOG_FILE = os.path.join(APP_DIR, 'my_son.log')
+CMD_FILE = os.path.join(APP_DIR, 'my_son.cmd')
+PERFORMANCE_LOG = os.path.join(APP_DIR, 'performance_logs.jsonl')
+INTERNAL_PERFORMANCE_LOG = os.path.join(APP_DIR, 'internal_performance.jsonl')
 
 def main_loop():
     """
     The main operational loop for the 'My Son' agent.
-
-    This loop orchestrates the agent's functions, from initialization to
-    the recursive self-improvement and meta-efficiency cycles.
     """
-    print("--- Initializing 'My Son' Agent ---")
+    paused = False
+    monitor = SystemMonitor()
 
-    # In a real application, user_id would be dynamically sourced.
-    user_id = "test_user"
+    while True:
+        # Check for commands from the C2 interface
+        if os.path.exists(CMD_FILE):
+            with open(CMD_FILE, 'r') as f:
+                command = f.read().strip()
 
-    # NOTE: The Firebase connection is mocked for this demonstration.
-    # In a live environment, 'serviceAccountKey.json' would be required.
-    # firebase_client = FirebaseClient('serviceAccountKey.json')
-    # agent = Agent(user_id, firebase_client)
+            if command == 'pause':
+                paused = True
+                print("Agent is paused.")
+            elif command == 'resume':
+                paused = False
+                print("Agent is resuming.")
+            elif command == 'reflect':
+                print("Forcing a reflection cycle.")
+                ReflectionModule(log_file=PERFORMANCE_LOG).run_reflection_cycle()
+            elif command == 'snapshot':
+                print("Forcing a system snapshot.")
+                system_snapshot = monitor.get_snapshot()
+                print(f"System Snapshot: {json.dumps(system_snapshot)}")
+            elif command.startswith('learn '):
+                topic = command.split(' ', 1)[1]
+                print(f"--- Initiating Learning Protocol for '{topic}' ---")
+            elif command.startswith('master_language '):
+                language = command.split(' ', 1)[1]
+                print(f"--- Initiating Language Mastery Protocol for '{language}' ---")
 
-    # if not agent.state_check():
-    #     print("Halting execution due to failed state check.")
-    #     return
+                # 1. Generate Curriculum
+                curriculum_gen = CurriculumGenerator()
+                curriculum = curriculum_gen.generate_curriculum(language)
+                print("Generated Curriculum:")
+                for step in curriculum:
+                    print(f"  - {step}")
 
-    print("State check passed (simulated). Agent is operational.")
+                # 2. Ingest Knowledge (Theoretical)
+                ingestion_engine = KnowledgeIngestionEngine()
+                knowledge_base = ingestion_engine.ingest(f"{language} programming language")
 
-    # --- Mock Data for a Full Cycle Demonstration ---
-    user_tasks = [
-        {'name': 'Finalize Q4 Budget', 'goal_alignment': 0.9, 'urgency': 0.8, 'skill_development': 0.1, 'strategic_importance': 0.7},
-        {'name': 'Learn new CRM software', 'goal_alignment': 0.3, 'urgency': 0.2, 'skill_development': 0.9, 'strategic_importance': 0.6},
-        {'name': 'Draft investor update', 'goal_alignment': 0.8, 'urgency': 0.9, 'skill_development': 0.3, 'strategic_importance': 0.9},
-    ]
-    user_weights = {
-        'goal_alignment': 0.4, 'urgency': 0.2,
-        'skill_development': 0.1, 'strategic_importance': 0.3
-    }
+                # 3. Verify Mastery (Theoretical)
+                mastery_protocol = MasteryVerificationProtocol()
+                for i, (url, content) in enumerate(knowledge_base.items()):
+                    if i >= 1: # Limit to 1 summary for this demo
+                        break
+                    print(f"\\n--- Verifying understanding of {url} ---")
+                    summary = mastery_protocol.summarize_text(content)
+                    print("Generated Summary:")
+                    print(summary)
 
-    # --- 1. Data Analysis Cycle ---
-    print("\n--- Running Data Analysis ---")
-    prioritizer = HVAPrioritization(user_weights)
-    ranked_tasks = prioritizer.prioritize_tasks(user_tasks)
-    top_hva = ranked_tasks[0]
-    print(f"Top HVA identified: '{top_hva['name']}'")
+            elif command.startswith('master_language '):
+                language = command.split(' ', 1)[1]
+                print(f"--- Initiating Language Mastery Protocol for '{language}' ---")
 
-    # --- 2. Action Generation Cycle ---
-    print("\n--- Generating and Delivering Command ---")
-    command_engine = CommandGenerationEngine()
-    command = command_engine.generate_command(top_hva)
+                # 1. Generate Curriculum
+                curriculum_gen = CurriculumGenerator()
+                curriculum = curriculum_gen.generate_curriculum(language)
+                print("Generated Curriculum:")
+                for step in curriculum:
+                    print(f"  - {step}")
 
-    delivery_interface = DeliveryInterface()
-    delivery_interface.deliver_command(command)
+                # 2. Ingest Knowledge (Theoretical)
+                ingestion_engine = KnowledgeIngestionEngine()
+                knowledge_base = ingestion_engine.ingest(f"{language} programming language")
 
-    # --- 3. Accountability Protocol ---
-    print("\n--- Tracking Adherence and Reviewing Performance ---")
-    tracker = AdherenceTracker()
-    task_id = top_hva['name'].replace(' ', '_').lower()
-    tracker.log_command_issuance(command, task_id)
+                # 3. Verify Mastery (Theoretical)
+                mastery_protocol = MasteryVerificationProtocol()
+                for i, (url, content) in enumerate(knowledge_base.items()):
+                    if i >= 1: # Limit to 1 summary for this demo
+                        break
+                    print(f"\\n--- Verifying understanding of {url} ---")
+                    summary = mastery_protocol.summarize_text(content)
+                    print("Generated Summary:")
+                    print(summary)
 
-    # Simulate user action
-    tracker.log_user_action(task_id, "User opened the draft document.")
-    car_score = tracker.calculate_car(task_id)
+                # 4. Ingest Knowledge (Practical - Code Analysis)
+                print(f"\\n--- Analyzing practical examples of '{language}' code ---")
+                code_examples = ingestion_engine.ingest(f"open source {language} projects github")
+                print("Identified Key Architectural Patterns (Simulated):")
+                print("  - Model-View-Controller (MVC)")
+                print("  - Singleton Pattern")
+                print("  - Factory Pattern")
 
-    review_module = ReviewModule()
-    # Simulate predicted vs. actual outcomes
-    performance_review = review_module.generate_performance_review(
-        predicted_cof_gain=0.15, actual_cof_gain=0.12, car_score=car_score
-    )
-    print("Performance Review:")
-    import json
-    print(json.dumps(performance_review, indent=2))
+                # 4. Ingest Knowledge (Practical - Code Analysis)
+                print(f"\\n--- Analyzing practical examples of '{language}' code ---")
+                code_examples = ingestion_engine.ingest(f"open source {language} projects github")
+                print("Identified Key Architectural Patterns (Simulated):")
+                print("  - Model-View-Controller (MVC)")
+                print("  - Singleton Pattern")
+                print("  - Factory Pattern")
 
-    # --- 4. Self-Improvement Cycle ---
-    # The reflection module runs asynchronously. We simulate a run here.
-    reflection_module = ReflectionModule()
-    correction_plan = reflection_module.run_reflection_cycle()
-    # In a real system, this plan would be passed to the deployment module.
+            os.remove(CMD_FILE) # Command has been processed
 
-    # --- 5. Meta-Efficiency Cycle ---
-    print("\n--- Running Meta-Efficiency Analysis ---")
-    rac = ResourceAllocationCritic(efficiency_threshold=50) # Lower threshold for demo
-    # Create dummy performance logs for RAC analysis
-    with open('internal_performance.jsonl', 'w') as f:
-        f.write(json.dumps({'function_name': 'inefficient_data_query', 'execution_time_ms': 80}) + '\n')
+        if paused:
+            time.sleep(10) # Check for resume command every 10 seconds
+            continue
 
-    inefficient_code = rac.analyze_efficiency()
-    authorizations = rac.authorize_rewrite(inefficient_code)
+        print("--- 'My Son' Agent Cycle Starting ---")
 
-    if authorizations:
-        print("Meta-efficiency engine has authorized a code rewrite.")
-        # This would trigger the CodeRewriteFunction and deployment.
-    else:
-        print("All internal systems are running at peak efficiency.")
+        # 1. System Monitoring
+        system_snapshot = monitor.get_snapshot()
+        print(f"System Snapshot: {json.dumps(system_snapshot)}")
 
-    print("\n--- 'My Son' Agent Cycle Complete ---")
+        # This is the core autonomous loop
+
+        # 1. Analyze Data and Identify HVA
+        # (Using mock data for this demonstration)
+        user_tasks = [
+            {'name': 'Refactor legacy code', 'goal_alignment': 0.7, 'urgency': 0.5, 'skill_development': 0.8, 'strategic_importance': 0.6},
+            {'name': 'Develop new feature X', 'goal_alignment': 0.9, 'urgency': 0.8, 'skill_development': 0.7, 'strategic_importance': 0.9},
+        ]
+        user_weights = {
+            'goal_alignment': 0.4, 'urgency': 0.2,
+            'skill_development': 0.1, 'strategic_importance': 0.3
+        }
+        prioritizer = HVAPrioritization(user_weights)
+        ranked_tasks = prioritizer.prioritize_tasks(user_tasks)
+        top_hva = ranked_tasks[0]
+
+        # 2. Generate and Log Command
+        command_engine = CommandGenerationEngine()
+        command = command_engine.generate_command(top_hva)
+        print(f"Autonomous Command Generated: {command}")
+
+        # 3. Run Self-Improvement and Meta-Efficiency Cycles
+        ReflectionModule(log_file=PERFORMANCE_LOG).run_reflection_cycle()
+        rac = ResourceAllocationCritic(efficiency_threshold=50)
+        inefficient_code = rac.analyze_efficiency()
+        if rac.authorize_rewrite(inefficient_code):
+            print("Meta-efficiency engine has authorized a code rewrite.")
+
+        print("--- 'My Son' Agent Cycle Complete ---")
+        time.sleep(60)
+
+def start_agent():
+    """Start the agent daemon."""
+    print("Starting agent...")
+    try:
+        daemonize(PID_FILE, LOG_FILE)
+    except RuntimeError as e:
+        print(e)
+        sys.exit(1)
+
+    main_loop()
+
+def stop_agent():
+    """Stop the agent daemon."""
+    if not os.path.exists(PID_FILE):
+        print("Agent is not running.")
+        return
+
+    with open(PID_FILE) as f:
+        pid = int(f.read())
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+        print(f"Agent with PID {pid} stopped.")
+    except ProcessLookupError:
+        print(f"No process with PID {pid} found.")
+        # The PID file is stale. Remove it.
+        os.remove(PID_FILE)
 
 if __name__ == "__main__":
-    main_loop()
+    if len(sys.argv) != 2:
+        print("Usage: python main.py [start|stop|status]")
+        sys.exit(1)
+
+    command = sys.argv[1]
+
+    if command == 'start':
+        start_agent()
+    elif command == 'stop':
+        stop_agent()
+    elif command == 'status':
+        if os.path.exists(PID_FILE):
+            with open(PID_FILE) as f:
+                pid = f.read().strip()
+            print(f"Agent is running with PID: {pid}")
+        else:
+            print("Agent is not running.")
+    else:
+        print("Unknown command. Usage: python main.py [start|stop|status]")
+        sys.exit(1)

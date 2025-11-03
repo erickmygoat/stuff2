@@ -1,3 +1,9 @@
 firebase-admin
 pytest
 astor
+psutil
+beautifulsoup4
+requests
+googlesearch-python
+transformers
+torch
