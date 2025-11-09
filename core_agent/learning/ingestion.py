@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from googlesearch import search
 
 import re
-from my_son.learning.osint import OSINTClient
+from core_agent.learning.osint import OSINTClient
 
 class KnowledgeIngestionEngine:
     """

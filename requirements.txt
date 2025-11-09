@@ -1,5 +1,7 @@
 firebase-admin
 pytest
+pytest-asyncio
+pytest-mock
 astor
 psutil
 beautifulsoup4
@@ -9,3 +11,14 @@ transformers
 torch
 GitPython
 Flask
+asyncio-atexit
+sherlock-project
+holehe
+maigret
+theharvester
+arcade-mcp
+google-cloud-logging
+playsound==1.2.2
+gtts
+demjson3
+spacy
