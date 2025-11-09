@@ -1,5 +1,7 @@
 import ast
 import astor
+import subprocess
+import os
 
 class CodeRewriteFunction:
     """
@@ -18,63 +20,58 @@ class CodeRewriteFunction:
 
     def _generate_refactored_code(self, original_code):
         """
-        Refactors the given code to improve efficiency. (Simulated)
-
-        This is a placeholder for a highly advanced AI code generation model.
-        Here, we will perform a simple, illustrative transformation.
-
-        Args:
-            original_code (str): The original, inefficient code.
-
-        Returns:
-            str: The refactored, optimized code.
+        Refactors the given code to improve efficiency using AST.
         """
         try:
             tree = ast.parse(original_code)
 
-            # A simple optimization: find nested for-loops and add a comment
-            # suggesting a better algorithm. In a real scenario, this would
-            # be a much more complex transformation.
-            for node in ast.walk(tree):
-                if isinstance(node, ast.For):
-                    for sub_node in node.body:
-                        if isinstance(sub_node, ast.For):
-                            # This is a nested loop, a common source of inefficiency.
-                            comment = ast.Expr(value=ast.Str(s="\n# REWRITE_NOTE: This nested loop was identified as a bottleneck. Consider a more efficient algorithm.\n"))
-                            node.body.insert(0, comment)
-                            break
+            # This transformer will find list comprehensions and suggest converting them to generators.
+            class ListCompToGenExp(ast.NodeTransformer):
+                def visit_ListComp(self, node):
+                    # In a more advanced implementation, we would check the context of the list comprehension.
+                    # For this demo, we will transform any list comprehension.
+                    return ast.GeneratorExp(elt=node.elt, generators=node.generators)
 
-            return astor.to_source(tree)
+            transformer = ListCompToGenExp()
+            new_tree = transformer.visit(tree)
+            ast.fix_missing_locations(new_tree)
+
+            return astor.to_source(new_tree)
         except Exception as e:
             print(f"Failed to parse and refactor code: {e}")
             return None
 
-    def _run_validation_test(self, original_code, refactored_code):
+    def _run_validation_test(self, original_code_path, refactored_code):
         """
         Runs a simulated unit test to ensure the refactored code is valid.
         """
         print("--- Running Validation Test ---")
-        print("Original code output (simulated): 12345")
-        print("Refactored code output (simulated): 12345")
 
-        # In a real system, this would execute both versions in a sandbox and
-        # compare their outputs and side effects.
-        if "12345" == "12345":
-            print("Validation successful: Outputs are identical.")
-            return True
-        else:
-            print("Validation failed: Outputs do not match.")
+        refactored_file_path = original_code_path.replace('.py', '_refactored.py')
+        with open(refactored_file_path, 'w') as f:
+            f.write(refactored_code)
+
+        try:
+            # Run the original and refactored code and compare their output.
+            original_output = subprocess.check_output(['python', original_code_path], text=True)
+            refactored_output = subprocess.check_output(['python', refactored_file_path], text=True)
+
+            os.remove(refactored_file_path) # Clean up the temporary file
+
+            if original_output == refactored_output:
+                print("Validation successful: Outputs are identical.")
+                return True
+            else:
+                print("Validation failed: Outputs do not match.")
+                return False
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred during validation: {e}")
+            os.remove(refactored_file_path)
             return False
 
     def rewrite_and_validate(self, original_code_path):
         """
         Executes the full rewrite and validation process.
-
-        Args:
-            original_code_path (str): The path to the inefficient code file.
-
-        Returns:
-            str: The refactored code if successful, otherwise None.
         """
         try:
             with open(original_code_path, 'r') as f:
@@ -83,20 +80,20 @@ class CodeRewriteFunction:
             print(f"Error: Could not find the code file at {original_code_path}")
             return None
 
-        print(f"\nRefactoring authorized for: {self.authorization['target_function']}")
+        print(f"\\nRefactoring authorized for: {self.authorization['target_function']}")
 
         refactored_code = self._generate_refactored_code(original_code)
         if not refactored_code:
             return None
 
-        print("\n--- Proposed Refactoring ---")
+        print("\\n--- Proposed Refactoring ---")
         print(refactored_code)
 
-        if self._run_validation_test(original_code, refactored_code):
-            print("\nRewrite is ready for deployment.")
+        if self._run_validation_test(original_code_path, refactored_code):
+            print("\\nRewrite is ready for deployment.")
             return refactored_code
         else:
-            print("\nRewrite rejected due to validation failure.")
+            print("\\nRewrite rejected due to validation failure.")
             return None
 
 # Example Usage:
@@ -104,10 +101,13 @@ if __name__ == '__main__':
     # Create a dummy inefficient file to be rewritten
     dummy_code = """
 def slow_function():
-    # This function is slow and needs to be optimized.
-    for i in range(100):
-        for j in range(100): # Nested loop bottleneck
-            print(i, j)
+    # This list comprehension could be a generator.
+    x = [i for i in range(10)]
+    for i in x:
+        print(i)
+
+if __name__ == "__main__":
+    slow_function()
 """
     file_path = "dummy_inefficient_module.py"
     with open(file_path, "w") as f:

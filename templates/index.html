@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>'My Son' Agent Control</title>
+    <style>
+        body { font-family: sans-serif; }
+        #log {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            overflow-y: scroll;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .controls { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>'My Son' Agent Control</h1>
+    <pre id="log"></pre>
+    <div class="controls">
+        <button onclick="startAgent()">Start Agent</button>
+        <button onclick="stopAgent()">Stop Agent</button>
+        <input type="text" id="commandInput" placeholder="e.g., learn Python">
+        <button onclick="sendCommand()">Send Command</button>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+
+        function startAgent() {
+            fetch('/start', {method: 'POST'})
+                .then(() => log.innerHTML += 'Agent start command issued.\\n');
+        }
+
+        function stopAgent() {
+            fetch('/stop', {method: 'POST'})
+                .then(() => log.innerHTML += 'Agent stop command issued.\\n');
+        }
+
+        function sendCommand() {
+            const command = document.getElementById('commandInput').value;
+            fetch('/command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: command})
+            }).then(() => log.innerHTML += `Command sent: ${command}\\n`);
+        }
+
+        function getLogs() {
+            fetch('/log')
+                .then(response => response.text())
+                .then(text => {
+                    log.innerHTML = text;
+                    log.scrollTop = log.scrollHeight;
+                });
+        }
+
+        setInterval(getLogs, 2000); // Poll for logs every 2 seconds
+    </script>
+</body>
+</html>

@@ -18,6 +18,8 @@ from my_son.system_monitor import SystemMonitor
 from my_son.learning.ingestion import KnowledgeIngestionEngine
 from my_son.learning.curriculum import CurriculumGenerator
 from my_son.learning.mastery import MasteryVerificationProtocol
+from my_son.git_integration import GitIntegration
+from my_son.self_improvement.deployment import DeploymentModule
 
 # Use absolute paths for all files to avoid issues when daemonized
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +35,20 @@ def main_loop():
     """
     paused = False
     monitor = SystemMonitor()
+
+    # Initialize the agent
+    # In a real application, user_id would be dynamically sourced.
+    user_id = "test_user"
+    # NOTE: The Firebase connection is mocked for this demonstration.
+    # In a live environment, 'serviceAccountKey.json' would be required.
+    # firebase_client = FirebaseClient('serviceAccountKey.json')
+    # agent = Agent(user_id, firebase_client)
+
+    # if not agent.state_check():
+    #     print("Halting execution due to failed state check.")
+    #     return
+
+    print("Agent initialized and state check passed (simulated).")
 
     while True:
         # Check for commands from the C2 interface
@@ -106,13 +122,6 @@ def main_loop():
                     print("Generated Summary:")
                     print(summary)
 
-                # 4. Ingest Knowledge (Practical - Code Analysis)
-                print(f"\\n--- Analyzing practical examples of '{language}' code ---")
-                code_examples = ingestion_engine.ingest(f"open source {language} projects github")
-                print("Identified Key Architectural Patterns (Simulated):")
-                print("  - Model-View-Controller (MVC)")
-                print("  - Singleton Pattern")
-                print("  - Factory Pattern")
 
                 # 4. Ingest Knowledge (Practical - Code Analysis)
                 print(f"\\n--- Analyzing practical examples of '{language}' code ---")
@@ -159,8 +168,31 @@ def main_loop():
         ReflectionModule(log_file=PERFORMANCE_LOG).run_reflection_cycle()
         rac = ResourceAllocationCritic(efficiency_threshold=50)
         inefficient_code = rac.analyze_efficiency()
-        if rac.authorize_rewrite(inefficient_code):
+        authorizations = rac.authorize_rewrite(inefficient_code)
+        if authorizations:
             print("Meta-efficiency engine has authorized a code rewrite.")
+
+            # Identify the file to rewrite
+            # This is still a simplified approach. A more advanced implementation
+            # would use a more sophisticated method to map function names to files.
+            target_function = authorizations[0]['target_function']
+            target_file = f"my_son/meta_efficiency/{target_function}.py"
+
+            rewriter = CodeRewriteFunction(authorizations[0])
+            validated_code = rewriter.rewrite_and_validate(target_file)
+
+            if validated_code:
+                deployment_plan = {
+                    'target_module': target_file,
+                    'refactored_code': validated_code
+                }
+                # Deploy the changes
+                DeploymentModule(deployment_plan)._apply_patch()
+
+                # Commit the self-improvement
+                git_integration = GitIntegration()
+                commit_message = f"Self-Improvement: Optimized '{target_file}'"
+                git_integration.commit_changes([target_file], commit_message)
 
         print("--- 'My Son' Agent Cycle Complete ---")
         time.sleep(60)

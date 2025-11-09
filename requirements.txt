@@ -7,3 +7,5 @@ requests
 googlesearch-python
 transformers
 torch
+GitPython
+Flask

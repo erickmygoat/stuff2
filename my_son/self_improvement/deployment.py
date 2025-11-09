@@ -1,14 +1,10 @@
 import os
 import sys
-import subprocess
+import shutil
 
 class DeploymentModule:
     """
     Handles the autonomous deployment of self-correction plans.
-
-    This module simulates a secure, self-contained deployment environment. It applies
-    a given patch, runs validation tests, and restarts the main process to
-    deploy the new, improved agent version.
     """
     def __init__(self, plan):
         """
@@ -23,37 +19,37 @@ class DeploymentModule:
         """
         Ensures the plan is well-formed and safe to apply.
         """
-        if not self.plan or 'target_module' not in self.plan or 'correction_diff' not in self.plan:
+        if not self.plan or 'target_module' not in self.plan or 'refactored_code' not in self.plan:
             print("Deployment failed: Plan is invalid or incomplete.")
             return False
         return True
 
     def _apply_patch(self):
         """
-        Applies the code patch from the plan. (Simulated)
-
-        In a real system, this would involve careful file manipulation and version control.
-        Here, we'll just print the intention.
+        Applies the code patch from the plan.
         """
-        print(f"Applying patch to {self.plan['target_module']}...")
-        print("--- DIFF ---")
-        print(self.plan['correction_diff'])
-        print("--- END DIFF ---")
-        # In a real implementation, you would use a library like `patch` to apply the diff.
-        print("Patch applied successfully. (Simulated)")
-        return True
+        target_file = self.plan['target_module']
+        backup_file = f"{target_file}.bak"
 
-    def _run_unit_tests(self):
-        """
-        Runs internal unit tests to validate the change. (Simulated)
+        print(f"Applying patch to {target_file}...")
 
-        This step is critical to ensure that the self-improvement process does not
-        introduce regressions or violate the Prime Directive.
-        """
-        print("Running internal unit tests...")
-        # Mocking a successful test run
-        print("All tests passed. The change is validated.")
-        return True
+        try:
+            # Create a backup of the original file
+            shutil.copy2(target_file, backup_file)
+            print(f"Backup of original file created at {backup_file}")
+
+            # Overwrite the original file with the refactored code
+            with open(target_file, 'w') as f:
+                f.write(self.plan['refactored_code'])
+
+            print("Patch applied successfully.")
+            return True
+        except Exception as e:
+            print(f"An error occurred while applying the patch: {e}")
+            # Rollback on failure
+            if os.path.exists(backup_file):
+                shutil.move(backup_file, target_file)
+            return False
 
     def deploy_and_restart(self):
         """
@@ -62,18 +58,16 @@ class DeploymentModule:
         if not self._validate_plan():
             return
 
-        if self._apply_patch() and self._run_unit_tests():
+        if self._apply_patch():
             print("Deployment successful. Restarting the main process to apply changes...")
 
-            # In a real-world application, a more robust restart mechanism would be used,
-            # such as a process manager like systemd or a container orchestrator.
+            # In a real-world application, a more robust restart mechanism would be used.
             try:
-                # This will attempt to restart the script with the same arguments.
                 os.execv(sys.executable, ['python'] + sys.argv)
             except Exception as e:
                 print(f"Failed to restart the process: {e}")
         else:
-            print("Deployment failed. Rolling back changes. (Simulated)")
+            print("Deployment failed. Rolled back changes.")
 
 def trigger_deployment(plan):
     """
