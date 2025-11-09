@@ -2,21 +2,26 @@ import requests
 from bs4 import BeautifulSoup
 from googlesearch import search
 
+import re
+from my_son.learning.osint import OSINTClient
+
 class KnowledgeIngestionEngine:
     """
     A module for autonomously finding, downloading, and processing information
     from online sources.
     """
-    def __init__(self, num_results=5):
+    def __init__(self, num_results=5, osint_client=None):
         """
         Initializes the KnowledgeIngestionEngine.
 
         Args:
             num_results (int): The number of search results to retrieve.
+            osint_client (OSINTClient): An instance of the OSINT client.
         """
         self.num_results = num_results
+        self.osint_client = osint_client
 
-    def search_online(self, query):
+    async def search_online(self, query):
         """
         Performs a Google search for the given query.
 
@@ -65,17 +70,28 @@ class KnowledgeIngestionEngine:
             print(f"Error scraping {url}: {e}")
             return ""
 
-    def ingest(self, query):
+    async def ingest(self, query):
         """
         Performs a search and scrapes the content of the top results.
+        If the query is a username or email, it will use OSINT tools.
 
         Args:
             query (str): The topic to learn about.
 
         Returns:
-            dict: A dictionary where keys are URLs and values are the scraped content.
+            dict: A dictionary where keys are URLs/sources and values are the scraped content.
         """
-        urls = self.search_online(query)
+        # Simple regex to detect email addresses
+        if self.osint_client and re.match(r"[^@]+@[^@]+\\.[^@]+", query):
+            print(f"Query '{query}' detected as an email. Using OSINT/holehe.")
+            return {"holehe": await self.osint_client.check_email(query)}
+
+        # Simple heuristic to detect usernames (e.g., no spaces)
+        if self.osint_client and ' ' not in query:
+            print(f"Query '{query}' detected as a potential username. Using OSINT/sherlock.")
+            return {"sherlock": await self.osint_client.investigate_username(query)}
+
+        urls = await self.search_online(query)
         ingested_data = {}
         for url in urls:
             content = self.scrape_website(url)

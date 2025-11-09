@@ -37,10 +37,13 @@ def send_command(command):
     except IOError as e:
         print(f"Error sending command: {e}")
 
+import asyncio
+from my_son.osint_manager import OSINTServiceManager
+
 def main():
     """Main function for the C2 interface."""
     if len(sys.argv) < 2:
-        print("Usage: python c2.py [status|log|pause|resume|reflect|snapshot|learn <topic>|master_language <language>]")
+        print("Usage: python c2.py [status|log|pause|resume|reflect|snapshot|learn <topic>|master_language <language>|start_osint|stop_osint|osint <tool> <query>]")
         sys.exit(1)
 
     action = sys.argv[1]
@@ -63,6 +66,17 @@ def main():
             sys.exit(1)
         language = sys.argv[2]
         send_command(f"master_language {language}")
+    elif action == 'start_osint':
+        asyncio.run(OSINTServiceManager().start_server())
+    elif action == 'stop_osint':
+        OSINTServiceManager().stop_server()
+    elif action == 'osint':
+        if len(sys.argv) < 4:
+            print("Usage: python c2.py osint <tool> <query>")
+            sys.exit(1)
+        tool = sys.argv[2]
+        query = " ".join(sys.argv[3:])
+        send_command(f"osint {tool} {query}")
     else:
         print(f"Unknown command: {action}")
         sys.exit(1)
