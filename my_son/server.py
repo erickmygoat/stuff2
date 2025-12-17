@@ -6,6 +6,7 @@ import shutil
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from my_son.daemon import AutonomousAgentDaemon
 from my_son.action_generation.executor import ActionExecutor
@@ -20,6 +21,11 @@ SWARM_PORT = int(os.environ.get("MY_SON_SWARM_PORT", "8000"))
 
 app = FastAPI(title="My Son Agent API")
 templates = Jinja2Templates(directory="templates")
+
+# Mount static files (if folder exists, creating it if not to prevent errors)
+if not os.path.exists("static"):
+    os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Initialize core components
 daemon = AutonomousAgentDaemon()
@@ -100,6 +106,14 @@ class SwarmTask(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/mobile", response_class=HTMLResponse)
+async def read_mobile(request: Request):
+    return templates.TemplateResponse(request=request, name="mobile.html")
+
+@app.get("/manifest.json")
+async def manifest(request: Request):
+    return templates.TemplateResponse(request=request, name="manifest.json", media_type="application/json")
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest, authorized: bool = Depends(verify_token)):
