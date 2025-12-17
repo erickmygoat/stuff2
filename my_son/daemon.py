@@ -11,6 +11,8 @@ from my_son.interface.voice import VoiceInterface
 from my_son.interface.state import state_manager
 from my_son.agent.scheduler import Scheduler
 from my_son.self_improvement.debugger import AutoDoctor
+from my_son.security.researcher import SecurityResearcher
+from my_son.brain.deep_learner import DeepLearner
 from my_son.config import DEBUG_MODE
 
 class AutonomousAgentDaemon:
@@ -32,20 +34,22 @@ class AutonomousAgentDaemon:
         self.voice_interface = VoiceInterface()
         self.scheduler = Scheduler()
         self.debugger = AutoDoctor()
+        self.security = SecurityResearcher()
+        self.learner = DeepLearner()
 
     async def run_loop(self):
         """
         Runs the main loop: Conversation -> Reflection -> Self-Correction.
         """
-        print("Starting Autonomous Agent Daemon...")
-        await state_manager.log_activity("Daemon started.")
+        print("Starting Autonomous Agent Daemon: My Son is Alive.")
+        await state_manager.log_activity("My Son is Alive. Daemon started.")
+
+        # Schedule Default Autonomous Tasks
+        self._schedule_default_tasks()
 
         # Start Scheduler & Debugger
         self.scheduler.start()
         if DEBUG_MODE:
-            # Run monitor in thread (it blocks, so needs thread or async wrapper)
-            # Since monitor_logs is blocking, we should launch it carefully.
-            # Ideally AutoDoctor.monitor_logs should be threaded internally or here.
             import threading
             threading.Thread(target=self.debugger.monitor_logs, daemon=True).start()
             await state_manager.log_activity("Auto-Doctor enabled.")
@@ -58,9 +62,6 @@ class AutonomousAgentDaemon:
             self.sync_manager.send_heartbeat()
 
             # 1. Run Conversation / User Interaction
-            # Note: ConversationalEngine is now mostly reactive via API,
-            # but start_conversation checks for legacy input file.
-            # We can keep it or remove it. Let's keep it for file-based compat.
             await self.conversational_engine.start_conversation()
 
             # 2. Run Self-Improvement Cycle
@@ -68,6 +69,49 @@ class AutonomousAgentDaemon:
 
             # Sleep briefly to avoid busy loop
             await asyncio.sleep(5)
+
+    def _schedule_default_tasks(self):
+        """
+        Registers autonomous tasks to the scheduler.
+        """
+        # 1. Security Scan (Every 60 minutes)
+        # We need a dummy code snippet or path to scan. For now, scan self.
+        self.scheduler.add_recurring_task(60, self._autonomous_security_scan)
+
+        # 2. Deep Research (Every 24 hours - 1440 minutes)
+        self.scheduler.add_recurring_task(1440, self._autonomous_research)
+
+        # 3. Reflection (Every 30 minutes)
+        # Note: Reflection is also called in the main loop, but we can enforce a dedicated cycle.
+        # self.scheduler.add_recurring_task(30, self.run_self_improvement)
+
+    def _autonomous_security_scan(self):
+        """
+        Task: Scan own codebase for vulnerabilities.
+        """
+        print("Daemon: Running autonomous security scan...")
+        # Simplification: Scan a key file
+        try:
+            with open("my_son/server.py", "r") as f:
+                code = f.read()
+            report = self.security.scan_code_vulnerabilities(code)
+            # In a real async context we'd await, but scheduler runs in thread.
+            # We can't easily await state_manager here without a loop.
+            # Just print for now.
+            print(f"Security Report: {report[:100]}...")
+        except Exception as e:
+            print(f"Security Scan Failed: {e}")
+
+    def _autonomous_research(self):
+        """
+        Task: Research AI advancements.
+        """
+        print("Daemon: Running autonomous research...")
+        try:
+            summary = self.learner.study_topic("Latest advancements in Autonomous AI Agents")
+            print(f"Research Summary: {summary}")
+        except Exception as e:
+            print(f"Research Failed: {e}")
 
     def run_self_improvement(self):
         """
@@ -78,7 +122,8 @@ class AutonomousAgentDaemon:
         if not plan:
             return
 
-        state_manager.update_state_sync = lambda k, v: asyncio.create_task(state_manager.update_state(k, v)) # Hack for sync context
+        # Use asyncio.create_task only if there is a running loop, which there is (run_loop).
+        # But this method is called from run_loop, so it's fine.
         asyncio.create_task(state_manager.log_activity("Self-Correction Plan generated."))
 
         # B. Code Modification
