@@ -15,4 +15,5 @@ chromadb
 gTTS
 pyngrok
 psutil
-gitpython
+Pillow
+Pillow

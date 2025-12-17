@@ -8,7 +8,7 @@ from my_son.sync.swarm import SwarmManager
 class LLMClient:
     """
     A unified client handling Local Sovereignty (Ollama) as default, with fallbacks.
-    Supports Swarm delegation.
+    Supports Swarm delegation and Multi-modal Vision.
     """
 
     def __init__(self, api_key=None, model="llama3", api_url="http://localhost:11434/api/generate"):
@@ -17,21 +17,17 @@ class LLMClient:
         self.api_url = api_url # Default to Ollama
         self.logger = logging.getLogger(__name__)
 
-        # Initialize Memory
         self.memory = Memory()
-
-        # Initialize Swarm Manager
         self.swarm = SwarmManager()
 
-        # Mode Selection
-        # Default to "local" (Ollama) unless explicitly configured otherwise
         self.mode = "local"
         if self.api_key and "openai.com" in self.api_url:
             self.mode = "remote"
 
-    def complete(self, prompt, system_prompt="You are a helpful assistant.", max_tokens=1000, use_swarm=False):
+    def complete(self, prompt, system_prompt="You are a helpful assistant.", max_tokens=1000, use_swarm=False, images=None):
         """
         Generates a completion using the local Sovereign Brain or the Swarm.
+        Supports images (base64 encoded strings list).
         """
         # 1. Enhance Prompt with Long-Term Memory
         context = self.memory.retrieve_context(prompt)
@@ -43,8 +39,10 @@ class LLMClient:
         self.memory.save_context(prompt, "") # Store query part
 
         # 3. Execution (Swarm vs Local)
+        # Note: Swarm delegation currently doesn't support images in our simplified protocol.
+        # If images present, force local (or update swarm protocol later).
         result = None
-        if use_swarm:
+        if use_swarm and not images:
             print("LLMClient: Attempting to delegate to Swarm...")
             result = self.swarm.delegate_task(prompt, system_prompt)
             if result:
@@ -53,7 +51,7 @@ class LLMClient:
                 print("LLMClient: Swarm unavailable or failed. Falling back to local.")
 
         if not result:
-            result = self._complete_local(prompt, system_prompt, max_tokens)
+            result = self._complete_local(prompt, system_prompt, max_tokens, images)
             print("LLMClient: Generated Locally.")
 
         # 4. Store response
@@ -61,13 +59,20 @@ class LLMClient:
 
         return result
 
-    def _complete_local(self, prompt, system_prompt, max_tokens):
+    def _complete_local(self, prompt, system_prompt, max_tokens, images=None):
         """
         Uses Requests to hit Ollama (Local).
         """
+        # If images are present, we might need to switch model to 'llava' or compatible
+        model_to_use = self.model
+        if images:
+            # Simple heuristic: If default is llama3, switch to llava for vision
+            if "llama" in self.model:
+                model_to_use = "llava"
+
         # Ollama /api/generate format
         data = {
-            "model": self.model,
+            "model": model_to_use,
             "prompt": f"{system_prompt}\nUser: {prompt}\nAssistant:",
             "stream": False,
             "options": {
@@ -76,6 +81,9 @@ class LLMClient:
             }
         }
 
+        if images:
+            data["images"] = images # List of base64 strings
+
         try:
             response = requests.post(self.api_url, json=data, timeout=60)
             response.raise_for_status()
@@ -83,4 +91,4 @@ class LLMClient:
             return result
         except Exception as e:
             self.logger.error(f"Local LLM failed: {e}")
-            return f"[Error] My brain is offline. Please ensure Ollama is running. ({e})"
+            return f"[Error] My brain is offline. Please ensure Ollama is running with model '{model_to_use}'. ({e})"

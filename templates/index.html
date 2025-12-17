@@ -33,9 +33,15 @@
         .msg { margin-bottom: 15px; line-height: 1.5; }
         .msg.user { color: #58a6ff; }
         .msg.agent { color: var(--text-main); }
-        .input-area { padding: 20px; background: var(--panel-bg); border-top: 1px solid var(--border); display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; background: #0d1117; border: 1px solid var(--border); color: white; border-radius: 6px; outline: none; }
+        .img-preview { max-width: 200px; max-height: 200px; border-radius: 5px; margin-top: 5px; }
+
+        .input-area { padding: 20px; background: var(--panel-bg); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 10px; background: #0d1117; border: 1px solid var(--border); color: white; border-radius: 6px; outline: none; }
         button { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; }
+
+        /* Vision Input */
+        .vision-btn { background: #1f6feb; display: flex; align-items: center; justify-content: center; width: 40px; padding: 0; }
+        #image-input { display: none; }
 
         /* Right Panel: Logs */
         #log-stream { font-family: monospace; font-size: 0.8rem; color: var(--text-dim); }
@@ -77,6 +83,8 @@
             <div class="panel-content" id="chat-container">
                 <div id="messages"></div>
                 <div class="input-area">
+                    <button class="vision-btn" onclick="document.getElementById('image-input').click()" title="Upload Image">👁️</button>
+                    <input type="file" id="image-input" accept="image/*" onchange="handleImageSelect()">
                     <input type="text" id="user-input" placeholder="Enter command or query..." onkeypress="handleKey(event)">
                     <button onclick="sendMessage()">Send</button>
                 </div>
@@ -93,6 +101,7 @@
     <script>
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
         const token = "1234"; // Hardcoded for MVP UI
+        let selectedImage = null;
 
         ws.onopen = () => {
             document.getElementById('connection-status').innerText = "ONLINE";
@@ -128,24 +137,62 @@
             logs.scrollTop = logs.scrollHeight;
         }
 
+        function handleImageSelect() {
+            const file = document.getElementById('image-input').files[0];
+            if (file) {
+                selectedImage = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Show preview in chat input area? No, maybe just log or change button color
+                    document.querySelector('.vision-btn').style.background = "#00ff41";
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
         async function sendMessage() {
             const input = document.getElementById('user-input');
             const text = input.value;
-            if (!text) return;
 
-            addMessage("You", text, "user");
-            input.value = "";
+            if (selectedImage) {
+                // Image Upload Flow
+                const formData = new FormData();
+                formData.append('file', selectedImage);
+                formData.append('prompt', text || "Describe this image");
 
-            try {
-                const res = await fetch('/api/chat?token=' + token, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: text})
-                });
-                const data = await res.json();
-                addMessage("Agent", data.response, "agent");
-            } catch (e) {
-                addLog("Error sending message: " + e);
+                addMessage("You", "[Uploading Image...]", "user");
+                input.value = "";
+                selectedImage = null;
+                document.querySelector('.vision-btn').style.background = "#1f6feb";
+                document.getElementById('image-input').value = "";
+
+                try {
+                    const res = await fetch('/api/vision/analyze?token=' + token, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    addMessage("Agent", data.response, "agent");
+                } catch (e) {
+                    addLog("Error processing image: " + e);
+                }
+            } else {
+                // Text Flow
+                if (!text) return;
+                addMessage("You", text, "user");
+                input.value = "";
+
+                try {
+                    const res = await fetch('/api/chat?token=' + token, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({message: text})
+                    });
+                    const data = await res.json();
+                    addMessage("Agent", data.response, "agent");
+                } catch (e) {
+                    addLog("Error sending message: " + e);
+                }
             }
         }
 
