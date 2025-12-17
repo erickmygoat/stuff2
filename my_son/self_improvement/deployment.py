@@ -5,6 +5,7 @@ This module contains the DeploymentModule, responsible for applying patches and 
 import os
 import subprocess
 import re
+import shutil
 
 class DeploymentModule:
     """
@@ -14,13 +15,7 @@ class DeploymentModule:
     def apply_patch(self, patch_text):
         """
         Parses the patch text and applies it to the codebase using SEARCH/REPLACE blocks.
-        Format:
-        FILE: <path>
-        <<<<<<< SEARCH
-        <content>
-        =======
-        <content>
-        >>>>>>> REPLACE
+        Includes backup logic.
         """
         print("--- Deploying Changes ---")
 
@@ -47,25 +42,46 @@ class DeploymentModule:
             with open(filepath, 'r') as f:
                 content = f.read()
 
+            # Validation Pass
             for search_block, replace_block in matches:
-                # Basic normalization to handle potential whitespace issues from LLM
                 if search_block not in content:
                     print(f"SEARCH block not found in {filepath}. Aborting.")
-                    # In a real system, we might try fuzzy matching or revert previous changes
                     return False
 
-                content = content.replace(search_block, replace_block)
+            # Backup
+            backup_path = filepath + ".bak"
+            shutil.copy2(filepath, backup_path)
+            print(f"Backup created at {backup_path}")
+
+            # Apply Changes
+            new_content = content
+            for search_block, replace_block in matches:
+                new_content = new_content.replace(search_block, replace_block)
 
             print(f"Applying changes to {filepath}...")
             with open(filepath, 'w') as f:
-                f.write(content)
+                f.write(new_content)
             print("File updated.")
+
+            # Verify
+            # Note: run_verification calls commit_changes internally if successful
+            if self.run_verification(filepath):
+                # Cleanup backup on success
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+                return True
+            else:
+                # Restore backup on failure
+                print("Verification failed. Restoring backup...")
+                shutil.move(backup_path, filepath)
+                return False
 
         except Exception as e:
             print(f"Error applying patch: {e}")
+            if os.path.exists(filepath + ".bak"):
+                print("Restoring backup due to error...")
+                shutil.move(filepath + ".bak", filepath)
             return False
-
-        return self.run_verification(filepath)
 
     def run_verification(self, filepath):
         """
@@ -83,7 +99,6 @@ class DeploymentModule:
                 print("Tests failed.")
                 print(result.stdout)
                 print(result.stderr)
-                # Revert changes? For now, just report failure.
                 return False
         except Exception as e:
             print(f"Error running tests: {e}")
