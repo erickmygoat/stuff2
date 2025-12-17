@@ -13,15 +13,17 @@ class DeploymentModule:
 
     def apply_patch(self, patch_text):
         """
-        Parses the patch text and applies it to the codebase.
-        Assumes the format:
+        Parses the patch text and applies it to the codebase using SEARCH/REPLACE blocks.
+        Format:
         FILE: <path>
-        CODE:
+        <<<<<<< SEARCH
         <content>
+        =======
+        <content>
+        >>>>>>> REPLACE
         """
         print("--- Deploying Changes ---")
 
-        # Simple parsing logic for the MVP
         file_match = re.search(r"FILE: (.+)", patch_text)
         if not file_match:
             print("Could not parse file path from patch.")
@@ -29,37 +31,38 @@ class DeploymentModule:
 
         filepath = file_match.group(1).strip()
 
-        # Extract code content (rough extraction)
-        # Assumes CODE: is followed by the code until the end or next marker
-        # This is a simplification.
-        if "CODE:" not in patch_text:
-             print("Could not parse code content from patch.")
+        # Parse SEARCH/REPLACE blocks
+        search_pattern = r"<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE"
+        matches = re.findall(search_pattern, patch_text, re.DOTALL)
+
+        if not matches:
+             print("Could not find valid SEARCH/REPLACE blocks.")
              return False
 
-        code_content = patch_text.split("CODE:", 1)[1].strip()
+        if not os.path.exists(filepath):
+            print(f"Target file {filepath} does not exist.")
+            return False
 
-        # Remove markdown code fences if present
-        if code_content.startswith("```python"):
-            code_content = code_content[9:]
-        elif code_content.startswith("```"):
-            code_content = code_content[3:]
-
-        if code_content.endswith("```"):
-            code_content = code_content[:-3]
-
-        code_content = code_content.strip()
-
-        print(f"Applying changes to {filepath}...")
         try:
-            # Ensure directory exists
-            dirname = os.path.dirname(filepath)
-            if dirname:
-                os.makedirs(dirname, exist_ok=True)
+            with open(filepath, 'r') as f:
+                content = f.read()
+
+            for search_block, replace_block in matches:
+                # Basic normalization to handle potential whitespace issues from LLM
+                if search_block not in content:
+                    print(f"SEARCH block not found in {filepath}. Aborting.")
+                    # In a real system, we might try fuzzy matching or revert previous changes
+                    return False
+
+                content = content.replace(search_block, replace_block)
+
+            print(f"Applying changes to {filepath}...")
             with open(filepath, 'w') as f:
-                f.write(code_content)
+                f.write(content)
             print("File updated.")
+
         except Exception as e:
-            print(f"Error writing file: {e}")
+            print(f"Error applying patch: {e}")
             return False
 
         return self.run_verification(filepath)

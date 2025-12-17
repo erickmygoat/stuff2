@@ -12,3 +12,4 @@ SpeechRecognition
 llama-cpp-python
 huggingface_hub
 chromadb
+gTTS

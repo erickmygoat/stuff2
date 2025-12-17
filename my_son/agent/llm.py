@@ -2,84 +2,69 @@ import os
 import requests
 import json
 import logging
-from my_son.brain.embedded_llm import EmbeddedLLM
 from my_son.brain.memory import Memory
 
 class LLMClient:
     """
-    A unified client handling Remote APIs, Local Servers (Ollama), and Embedded Inference.
+    A unified client handling Local Sovereignty (Ollama) as default, with fallbacks.
     """
 
-    def __init__(self, api_key=None, model="gpt-4o", api_url="https://api.openai.com/v1/chat/completions"):
+    def __init__(self, api_key=None, model="llama3", api_url="http://localhost:11434/api/generate"):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        self.model = model
-        self.api_url = api_url
-        self.local_url = "http://localhost:11434/v1/chat/completions" # Default Ollama
+        self.model = model # Default to local model name
+        self.api_url = api_url # Default to Ollama
         self.logger = logging.getLogger(__name__)
 
-        # Initialize Embedded Components
-        self.embedded_brain = EmbeddedLLM()
+        # Initialize Memory
         self.memory = Memory()
 
         # Mode Selection
-        # If no API key is provided, prefer Embedded, then Local Server.
-        self.mode = "remote" if self.api_key else "embedded"
+        # Default to "local" (Ollama) unless explicitly configured otherwise
+        self.mode = "local"
+        if self.api_key and "openai.com" in self.api_url:
+            self.mode = "remote"
 
     def complete(self, prompt, system_prompt="You are a helpful assistant.", max_tokens=1000):
         """
-        Generates a completion using the best available method.
+        Generates a completion using the local Sovereign Brain.
         """
-        # 1. Enhance Prompt with Long-Term Memory (The "Complex Brain")
+        # 1. Enhance Prompt with Long-Term Memory
         context = self.memory.retrieve_context(prompt)
         if context:
             memory_block = "\nRELEVANT MEMORIES:\n" + "\n".join([f"- {m}" for m in context]) + "\n"
             system_prompt += memory_block
 
-        # 2. Store the new prompt in memory (learning from input)
-        self.memory.store_memory(f"User Query: {prompt}")
+        # 2. Store the new prompt in memory
+        self.memory.save_context(prompt, "") # Store query part
 
         # 3. Execution
-        if self.mode == "embedded":
-            return self._complete_embedded(prompt, system_prompt, max_tokens)
-        else:
-            return self._complete_remote(prompt, system_prompt, max_tokens)
+        result = self._complete_local(prompt, system_prompt, max_tokens)
 
-    def _complete_embedded(self, prompt, system_prompt, max_tokens):
-        """
-        Uses the embedded Llama model.
-        """
-        response = self.embedded_brain.generate(prompt, system_prompt, max_tokens)
+        # 4. Store response
+        self.memory.save_context("", result) # Store response part
 
-        # Store reasoning/output in memory
-        self.memory.store_memory(f"My Response: {response}")
+        return result
 
-        return response
-
-    def _complete_remote(self, prompt, system_prompt, max_tokens):
+    def _complete_local(self, prompt, system_prompt, max_tokens):
         """
-        Uses Requests to hit OpenAI or Ollama.
+        Uses Requests to hit Ollama (Local).
         """
+        # Ollama /api/generate format
         data = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.7
+            "prompt": f"{system_prompt}\nUser: {prompt}\nAssistant:",
+            "stream": False,
+            "options": {
+                "num_predict": max_tokens,
+                "temperature": 0.7
+            }
         }
 
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-             headers["Authorization"] = f"Bearer {self.api_key}"
-
         try:
-            # Try Remote
-            response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
+            response = requests.post(self.api_url, json=data, timeout=60)
             response.raise_for_status()
-            result = response.json()['choices'][0]['message']['content'].strip()
-            self.memory.store_memory(f"My Response: {result}")
+            result = response.json().get('response', '').strip()
             return result
         except Exception as e:
-            self.logger.warning(f"Remote LLM failed: {e}. Falling back to Embedded.")
-            return self._complete_embedded(prompt, system_prompt, max_tokens)
+            self.logger.error(f"Local LLM failed: {e}")
+            return f"[Error] My brain is offline. Please ensure Ollama is running. ({e})"

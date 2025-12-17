@@ -14,21 +14,26 @@ class CodeModificationModule:
 
     def generate_patch(self, plan_text):
         """
-        Generates a code patch based on the provided plan.
+        Generates a code patch based on the provided plan using SEARCH/REPLACE blocks.
         """
         print("--- Generating Code Patch ---")
 
         system_prompt = (
             "You are an expert software engineer. Your task is to write code changes based on a plan. "
-            "Return the changes in a format that describes which file to modify and the new content. "
-            "For this MVP, provide the full content of the file that needs modification."
+            "Do NOT rewrite entire files. Use a SEARCH/REPLACE block format to modify specific sections.\n"
+            "Format:\n"
+            "FILE: <file_path>\n"
+            "<<<<<<< SEARCH\n"
+            "<original code to find>\n"
+            "=======\n"
+            "<new code to replace it with>\n"
+            ">>>>>>> REPLACE\n"
+            "Ensure the SEARCH block matches the existing code EXACTLY (indentation, whitespace)."
         )
 
         prompt = (
             f"Based on this Self-Correction Plan:\n{plan_text}\n\n"
-            "Please generate the Python code to implement this fix. "
-            "Specify the file path and the code block. "
-            "Format: \nFILE: <path>\nCODE:\n<code_block>"
+            "Please generate the patch."
         )
 
         patch = self.llm.complete(prompt, system_prompt=system_prompt)

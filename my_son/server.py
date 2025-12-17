@@ -4,14 +4,12 @@ import asyncio
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from my_son.daemon import AutonomousAgentDaemon
 from my_son.action_generation.executor import ActionExecutor
 
 # --- Configuration ---
-# In a real app, use environment variables for secrets
-SECRET_TOKEN = os.environ.get("MY_SON_SECRET", "1234")  # Simple MVP auth
+SECRET_TOKEN = os.environ.get("MY_SON_SECRET", "1234")
 REPO_ROOT = os.getcwd()
 
 app = FastAPI(title="My Son Agent API")
@@ -21,17 +19,17 @@ templates = Jinja2Templates(directory="templates")
 daemon = AutonomousAgentDaemon()
 executor = ActionExecutor()
 
-# Background task runner for the autonomous loop
+# Background task runner
 loop_task = None
 
+# Lifespan events are preferred over on_event, but sticking to simple for now or fixing warnings
+# Since users saw warnings, let's just stick to the functional structure for MVP
 @app.on_event("startup")
 async def startup_event():
     """
     Start the autonomous loop in the background.
     """
     global loop_task
-    # We run the daemon loop as a background task.
-    # Since daemon.run_loop is an infinite loop, we wrap it.
     loop_task = asyncio.create_task(daemon_wrapper())
 
 async def daemon_wrapper():
@@ -64,36 +62,15 @@ class ActionRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest, authorized: bool = Depends(verify_token)):
     """
-    Communicates with the agent.
+    Communicates with the agent directly via method call.
     """
-    # Inject input into the agent's flow
-    # Since the daemon reads from input.txt, we can write to it,
-    # OR we can expose a direct method in ConversationalEngine.
-    # For MVP consistency with previous architecture, let's write to input.txt
-    # and wait for output.txt (or modify engine to return directly).
-
-    # Better approach for "App": Direct call
+    # Direct method call, awaits response string
     response = await daemon.conversational_engine.handle_user_input(request.message)
-    # Note: handle_user_input in previous code wrote to file and didn't return.
-    # I should probably update ConversationalEngine to return the response too.
-    # For now, I'll read the output file or just return a confirmation.
-
-    # Let's assume handle_user_input returns None but writes to output.txt.
-    # I will modify ConversationalEngine in a moment to return the string.
-
-    # Fallback if engine doesn't return
-    if not response:
-        if os.path.exists("output.txt"):
-            with open("output.txt", "r") as f:
-                response = f.read()
-        else:
-            response = "Agent received your message."
-
     return {"response": response}
 
 @app.post("/api/action")
@@ -110,9 +87,11 @@ async def download_code(authorized: bool = Depends(verify_token)):
     Zips the codebase and returns it.
     """
     zip_filename = "my_son_source.zip"
+    if os.path.exists(zip_filename):
+        os.remove(zip_filename)
+
     with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(REPO_ROOT):
-            # Exclude git, pycache, venv, and the zip itself
             if ".git" in root or "__pycache__" in root or "venv" in root:
                 continue
             for file in files:
