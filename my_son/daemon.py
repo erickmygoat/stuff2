@@ -6,6 +6,8 @@ from my_son.conversational.conversational_engine import ConversationalEngine
 from my_son.self_improvement.reflection import ReflectionModule
 from my_son.self_improvement.code_modification import CodeModificationModule
 from my_son.self_improvement.deployment import DeploymentModule
+from my_son.sync.sync_manager import SyncManager
+from my_son.interface.voice import VoiceInterface
 
 class AutonomousAgentDaemon:
     """
@@ -23,14 +25,29 @@ class AutonomousAgentDaemon:
         self.code_modification_module = CodeModificationModule()
         self.deployment_module = DeploymentModule()
 
+        # New Modules
+        self.sync_manager = SyncManager(agent_id="agent_v1", firebase_client=self.firebase_client)
+        self.voice_interface = VoiceInterface()
+
     async def run_loop(self):
         """
         Runs the main loop: Conversation -> Reflection -> Self-Correction.
         """
         print("Starting Autonomous Agent Daemon...")
         while True:
+            # 0. Sync Heartbeat
+            self.sync_manager.send_heartbeat()
+
             # 1. Run Conversation / User Interaction
             await self.conversational_engine.start_conversation()
+
+            # 1.5 Voice Input Check (Jarvis Mode)
+            # This is blocking, so we'd ideally run it in a thread/executor,
+            # but for MVP we'll check it here.
+            # Note: listen() has a timeout so it won't block forever.
+            # voice_input = self.voice_interface.listen()
+            # if voice_input:
+            #     await self.conversational_engine.handle_user_input(voice_input)
 
             # 2. Run Self-Improvement Cycle
             self.run_self_improvement()
@@ -63,8 +80,10 @@ class AutonomousAgentDaemon:
 
         if success:
             print("Daemon: Self-improvement cycle completed successfully.")
+            self.voice_interface.speak("Self-improvement cycle complete. I have updated my code.")
         else:
             print("Daemon: Deployment failed.")
+            self.voice_interface.speak("I attempted to improve myself, but the deployment failed.")
 
 if __name__ == "__main__":
     daemon = AutonomousAgentDaemon()
