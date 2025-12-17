@@ -3,6 +3,7 @@ This module provides Long-Term Memory capabilities using a Vector Database (Chro
 """
 import logging
 import time
+import os
 
 try:
     import chromadb
@@ -60,7 +61,8 @@ class Memory:
         metadata["timestamp"] = time.time()
 
         try:
-            mem_id = f"mem_{int(time.time() * 1000)}"
+            # Simple unique ID generation based on timestamp + hash to avoid collisions in bulk
+            mem_id = f"mem_{int(time.time() * 1000)}_{hash(text)}"
             self.collection.add(
                 documents=[text],
                 metadatas=[metadata],
@@ -87,3 +89,31 @@ class Memory:
         except Exception as e:
             self.logger.error(f"Failed to retrieve memory: {e}")
             return []
+
+    def ingest_bulk_folder(self, folder_path):
+        """
+        Scans a folder and adds all supported documents to memory.
+        """
+        if not os.path.exists(folder_path):
+            print(f"Memory: Folder {folder_path} does not exist.")
+            return
+
+        print(f"Memory: Ingesting folder {folder_path}...")
+        count = 0
+
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                if file.endswith((".txt", ".py", ".md", ".json")):
+                    file_path = os.path.join(root, file)
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            content = f.read()
+
+                        if content.strip():
+                            # Chunking could be added here for large files
+                            self.store_memory(content, metadata={"source": file_path})
+                            count += 1
+                    except Exception as e:
+                        print(f"Memory: Failed to ingest {file}: {e}")
+
+        print(f"Memory: Bulk ingestion complete. {count} documents added.")
