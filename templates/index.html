@@ -2,120 +2,171 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Son - Autonomous Agent Interface</title>
+    <title>Sovereign AGI Dashboard</title>
     <style>
-        body { font-family: monospace; background-color: #1e1e1e; color: #00ff00; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .input-group { margin-bottom: 20px; }
-        input[type="text"], input[type="password"] { width: 70%; padding: 10px; background: #333; color: white; border: 1px solid #555; }
-        button { padding: 10px 20px; background: #008800; color: white; border: none; cursor: pointer; }
-        button:hover { background: #00aa00; }
-        #chat-log { height: 300px; overflow-y: scroll; border: 1px solid #555; padding: 10px; margin-bottom: 20px; background: #000; }
-        .message { margin-bottom: 10px; }
-        .user { color: #aaa; }
-        .agent { color: #00ff00; font-weight: bold; }
-        .controls { border-top: 1px solid #555; padding-top: 20px; display: flex; gap: 10px; }
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --accent: #00ff41;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --border: #30363d;
+        }
+        body { margin: 0; font-family: 'Segoe UI', monospace; background: var(--bg-color); color: var(--text-main); display: grid; grid-template-rows: 60px 1fr; height: 100vh; overflow: hidden; }
+        header { background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+        h1 { font-size: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+        .status-badge { padding: 5px 10px; background: #238636; color: white; border-radius: 4px; font-size: 0.8rem; }
+
+        main { display: grid; grid-template-columns: 250px 1fr 300px; gap: 1px; background: var(--border); height: 100%; }
+        .panel { background: var(--bg-color); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { background: var(--panel-bg); padding: 10px; font-size: 0.9rem; border-bottom: 1px solid var(--border); font-weight: bold; color: var(--text-dim); }
+        .panel-content { flex: 1; padding: 10px; overflow-y: auto; }
+
+        /* Left Panel: Vitals */
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .progress-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+
+        /* Center Panel: Chat & Thought */
+        #chat-container { display: flex; flex-direction: column; height: 100%; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; }
+        .msg { margin-bottom: 15px; line-height: 1.5; }
+        .msg.user { color: #58a6ff; }
+        .msg.agent { color: var(--text-main); }
+        .input-area { padding: 20px; background: var(--panel-bg); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; background: #0d1117; border: 1px solid var(--border); color: white; border-radius: 6px; outline: none; }
+        button { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; }
+
+        /* Right Panel: Logs */
+        #log-stream { font-family: monospace; font-size: 0.8rem; color: var(--text-dim); }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>My Son Interface</h1>
+    <header>
+        <h1>My Son <span style="font-size:0.8em; color:#666;">// Sovereign AGI</span></h1>
+        <div id="connection-status" class="status-badge" style="background:#555;">Connecting...</div>
+    </header>
+    <main>
+        <!-- Left: Vitals -->
+        <div class="panel">
+            <div class="panel-header">SYSTEM VITALS</div>
+            <div class="panel-content">
+                <div class="stat-row"><span>CPU Usage</span><span id="cpu-val">0%</span></div>
+                <div class="progress-bar"><div class="fill" id="cpu-bar"></div></div>
+                <br>
+                <div class="stat-row"><span>Memory</span><span id="mem-val">0%</span></div>
+                <div class="progress-bar"><div class="fill" id="mem-bar"></div></div>
+                <br>
+                <div class="stat-row"><span>Status</span><span id="agent-status">Idle</span></div>
+                <div class="stat-row" style="margin-top:20px; color:var(--accent);">Current Task:</div>
+                <div id="current-task" style="font-size:0.9rem; color:#fff;">Waiting...</div>
+            </div>
 
-        <div class="input-group">
-            <label>Auth Token: </label>
-            <input type="password" id="auth-token" value="1234" placeholder="Enter Secret Token">
+            <div class="panel-header" style="border-top:1px solid var(--border);">CONTROLS</div>
+            <div class="panel-content">
+                <button onclick="triggerAction('upgrade')" style="width:100%; margin-bottom:10px; background:#1f6feb;">Force Upgrade</button>
+                <button onclick="triggerAction('download')" style="width:100%; background:#333;">Download Code</button>
+            </div>
         </div>
 
-        <div id="chat-log"></div>
-
-        <div class="input-group">
-            <input type="text" id="user-input" placeholder="Enter command or query...">
-            <button onclick="sendMessage()">Send</button>
+        <!-- Center: Interface -->
+        <div class="panel">
+            <div class="panel-header">NEURAL INTERFACE</div>
+            <div class="panel-content" id="chat-container">
+                <div id="messages"></div>
+                <div class="input-area">
+                    <input type="text" id="user-input" placeholder="Enter command or query..." onkeypress="handleKey(event)">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
         </div>
 
-        <div class="controls">
-            <button onclick="downloadCode()">Download Source Code</button>
-            <button onclick="triggerUpgrade()">Trigger Self-Improvement</button>
+        <!-- Right: Logs -->
+        <div class="panel">
+            <div class="panel-header">THOUGHT STREAM</div>
+            <div class="panel-content" id="log-stream"></div>
         </div>
-
-        <div class="controls">
-             <input type="text" id="action-cmd" placeholder="Shell Command (e.g. ls -la)">
-             <button onclick="runAction()">Run Action</button>
-        </div>
-        <div id="action-output" style="white-space: pre-wrap; margin-top:10px;"></div>
-    </div>
+    </main>
 
     <script>
-        const chatLog = document.getElementById('chat-log');
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const token = "1234"; // Hardcoded for MVP UI
 
-        function getHeaders() {
-            return {
-                'Content-Type': 'application/json',
-                'X-Auth-Token': document.getElementById('auth-token').value
-            };
+        ws.onopen = () => {
+            document.getElementById('connection-status').innerText = "ONLINE";
+            document.getElementById('connection-status').style.background = "#238636";
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'state_update') {
+                updateState(msg.data);
+            } else if (msg.type === 'log_update') {
+                addLog(msg.data.entry);
+            }
+        };
+
+        function updateState(data) {
+            if (data.system_stats) {
+                document.getElementById('cpu-val').innerText = data.system_stats.cpu_percent + "%";
+                document.getElementById('cpu-bar').style.width = data.system_stats.cpu_percent + "%";
+                document.getElementById('mem-val').innerText = data.system_stats.memory_percent + "%";
+                document.getElementById('mem-bar').style.width = data.system_stats.memory_percent + "%";
+            }
+            if (data.status) document.getElementById('agent-status').innerText = data.status;
+            if (data.current_task) document.getElementById('current-task').innerText = data.current_task;
+        }
+
+        function addLog(text) {
+            const logs = document.getElementById('log-stream');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerText = text;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
         }
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
-            const message = input.value;
-            if (!message) return;
+            const text = input.value;
+            if (!text) return;
 
-            // Add user message to log
-            chatLog.innerHTML += `<div class="message user">You: ${message}</div>`;
-            input.value = '';
+            addMessage("You", text, "user");
+            input.value = "";
 
             try {
-                const response = await fetch('/api/chat', {
+                const res = await fetch('/api/chat?token=' + token, {
                     method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({ message: message })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text})
                 });
-
-                if (response.status === 401) {
-                    chatLog.innerHTML += `<div class="message agent">Error: Unauthorized. Check Token.</div>`;
-                    return;
-                }
-
-                const data = await response.json();
-                chatLog.innerHTML += `<div class="message agent">Agent: ${data.response}</div>`;
-                chatLog.scrollTop = chatLog.scrollHeight;
+                const data = await res.json();
+                addMessage("Agent", data.response, "agent");
             } catch (e) {
-                chatLog.innerHTML += `<div class="message agent">Error: ${e}</div>`;
+                addLog("Error sending message: " + e);
             }
         }
 
-        async function downloadCode() {
-            const token = document.getElementById('auth-token').value;
-            window.location.href = `/api/download?token=${token}`;
+        function addMessage(sender, text, type) {
+            const msgs = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerHTML = `<strong>${sender}:</strong> ${text.replace(/\n/g, '<br>')}`;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
         }
 
-        async function triggerUpgrade() {
-            try {
-                const response = await fetch('/api/upgrade', {
-                    method: 'POST',
-                    headers: getHeaders()
-                });
-                const data = await response.json();
-                alert(data.status);
-            } catch (e) {
-                alert("Error triggering upgrade: " + e);
-            }
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMessage();
         }
 
-        async function runAction() {
-            const cmd = document.getElementById('action-cmd').value;
-            try {
-                const response = await fetch('/api/action', {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({ command: cmd })
-                });
-                const data = await response.json();
-                document.getElementById('action-output').innerText =
-                    `Stdout: ${data.stdout}\nStderr: ${data.stderr}\nCode: ${data.returncode}`;
-            } catch (e) {
-                alert("Error running action: " + e);
+        async function triggerAction(action) {
+            if (action === 'download') window.location.href = `/api/download?token=${token}`;
+            if (action === 'upgrade') {
+                await fetch('/api/upgrade?token=' + token, {method: 'POST'});
+                alert("Upgrade initiated.");
             }
         }
     </script>

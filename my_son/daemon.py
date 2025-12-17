@@ -8,6 +8,10 @@ from my_son.self_improvement.code_modification import CodeModificationModule
 from my_son.self_improvement.deployment import DeploymentModule
 from my_son.sync.sync_manager import SyncManager
 from my_son.interface.voice import VoiceInterface
+from my_son.interface.state import state_manager
+from my_son.agent.scheduler import Scheduler
+from my_son.self_improvement.debugger import AutoDoctor
+from my_son.config import DEBUG_MODE
 
 class AutonomousAgentDaemon:
     """
@@ -16,7 +20,6 @@ class AutonomousAgentDaemon:
 
     def __init__(self):
         # Initialize dependencies
-        # For MVP, using default/placeholder user_id and mock client if keys missing
         self.firebase_client = FirebaseClient()
         self.agent = Agent(user_id="default_user", firebase_client=self.firebase_client)
 
@@ -25,65 +28,76 @@ class AutonomousAgentDaemon:
         self.code_modification_module = CodeModificationModule()
         self.deployment_module = DeploymentModule()
 
-        # New Modules
         self.sync_manager = SyncManager(agent_id="agent_v1", firebase_client=self.firebase_client)
         self.voice_interface = VoiceInterface()
+        self.scheduler = Scheduler()
+        self.debugger = AutoDoctor()
 
     async def run_loop(self):
         """
         Runs the main loop: Conversation -> Reflection -> Self-Correction.
         """
         print("Starting Autonomous Agent Daemon...")
+        await state_manager.log_activity("Daemon started.")
+
+        # Start Scheduler & Debugger
+        self.scheduler.start()
+        if DEBUG_MODE:
+            # Run monitor in thread (it blocks, so needs thread or async wrapper)
+            # Since monitor_logs is blocking, we should launch it carefully.
+            # Ideally AutoDoctor.monitor_logs should be threaded internally or here.
+            import threading
+            threading.Thread(target=self.debugger.monitor_logs, daemon=True).start()
+            await state_manager.log_activity("Auto-Doctor enabled.")
+
         while True:
+            # Update System Stats
+            await state_manager.update_state("system_stats", state_manager.get_system_stats())
+
             # 0. Sync Heartbeat
             self.sync_manager.send_heartbeat()
 
             # 1. Run Conversation / User Interaction
+            # Note: ConversationalEngine is now mostly reactive via API,
+            # but start_conversation checks for legacy input file.
+            # We can keep it or remove it. Let's keep it for file-based compat.
             await self.conversational_engine.start_conversation()
-
-            # 1.5 Voice Input Check (Jarvis Mode)
-            # This is blocking, so we'd ideally run it in a thread/executor,
-            # but for MVP we'll check it here.
-            # Note: listen() has a timeout so it won't block forever.
-            # voice_input = self.voice_interface.listen()
-            # if voice_input:
-            #     await self.conversational_engine.handle_user_input(voice_input)
 
             # 2. Run Self-Improvement Cycle
             self.run_self_improvement()
 
-            # Sleep briefly to avoid busy loop if no input
+            # Sleep briefly to avoid busy loop
             await asyncio.sleep(5)
 
     def run_self_improvement(self):
         """
         Executes the self-improvement pipeline.
         """
-        print("Daemon: Initiating self-improvement check...")
-
         # A. Reflection
         plan = self.reflection_module.run_reflection_cycle()
         if not plan:
-            print("Daemon: No self-correction plan generated.")
             return
 
+        state_manager.update_state_sync = lambda k, v: asyncio.create_task(state_manager.update_state(k, v)) # Hack for sync context
+        asyncio.create_task(state_manager.log_activity("Self-Correction Plan generated."))
+
         # B. Code Modification
-        print(f"Daemon: Plan found. Generating patch...")
+        asyncio.create_task(state_manager.update_state("current_task", "Self-Improving"))
         patch = self.code_modification_module.generate_patch(plan)
         if not patch:
-            print("Daemon: No patch generated.")
             return
 
         # C. Deployment
-        print(f"Daemon: Patch generated. Attempting deployment...")
+        asyncio.create_task(state_manager.log_activity("Deploying patch..."))
         success = self.deployment_module.apply_patch(patch)
 
         if success:
-            print("Daemon: Self-improvement cycle completed successfully.")
-            self.voice_interface.speak("Self-improvement cycle complete. I have updated my code.")
+            asyncio.create_task(state_manager.log_activity("Self-improvement successful."))
+            self.voice_interface.speak("I have upgraded my code.")
         else:
-            print("Daemon: Deployment failed.")
-            self.voice_interface.speak("I attempted to improve myself, but the deployment failed.")
+            asyncio.create_task(state_manager.log_activity("Deployment failed."))
+
+        asyncio.create_task(state_manager.update_state("current_task", "Idle"))
 
 if __name__ == "__main__":
     daemon = AutonomousAgentDaemon()
