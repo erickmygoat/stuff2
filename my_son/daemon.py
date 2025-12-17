@@ -1,47 +1,71 @@
-import os
-import sys
-import atexit
+import asyncio
+import time
+from my_son.agent.agent import Agent
+from my_son.firebase.firebase_client import FirebaseClient
+from my_son.conversational.conversational_engine import ConversationalEngine
+from my_son.self_improvement.reflection import ReflectionModule
+from my_son.self_improvement.code_modification import CodeModificationModule
+from my_son.self_improvement.deployment import DeploymentModule
 
-def daemonize(pid_file='/tmp/my_son.pid', log_file='/tmp/my_son.log'):
+class AutonomousAgentDaemon:
     """
-    Turns the current process into a daemon.
+    Orchestrates the main loop and the self-improvement cycle.
     """
-    if os.path.exists(pid_file):
-        raise RuntimeError("Already running.")
 
-    # First fork
-    try:
-        if os.fork() > 0:
-            # Exit first parent
-            raise SystemExit(0)
-    except OSError as e:
-        raise RuntimeError(f"fork #1 failed: {e}")
+    def __init__(self):
+        # Initialize dependencies
+        # For MVP, using default/placeholder user_id and mock client if keys missing
+        self.firebase_client = FirebaseClient()
+        self.agent = Agent(user_id="default_user", firebase_client=self.firebase_client)
 
-    # Decouple from parent environment
-    os.chdir("/")
-    os.setsid()
-    os.umask(0)
+        self.conversational_engine = ConversationalEngine(self.agent)
+        self.reflection_module = ReflectionModule()
+        self.code_modification_module = CodeModificationModule()
+        self.deployment_module = DeploymentModule()
 
-    # Second fork
-    try:
-        if os.fork() > 0:
-            # Exit second parent
-            raise SystemExit(0)
-    except OSError as e:
-        raise RuntimeError(f"fork #2 failed: {e}")
+    async def run_loop(self):
+        """
+        Runs the main loop: Conversation -> Reflection -> Self-Correction.
+        """
+        print("Starting Autonomous Agent Daemon...")
+        while True:
+            # 1. Run Conversation / User Interaction
+            await self.conversational_engine.start_conversation()
 
-    # Redirect standard file descriptors
-    sys.stdout.flush()
-    sys.stderr.flush()
-    with open(os.devnull, 'rb', 0) as f:
-        os.dup2(f.fileno(), sys.stdin.fileno())
-    with open(log_file, 'ab', 0) as f:
-        os.dup2(f.fileno(), sys.stdout.fileno())
-        os.dup2(f.fileno(), sys.stderr.fileno())
+            # 2. Run Self-Improvement Cycle
+            self.run_self_improvement()
 
-    # Write pidfile
-    with open(pid_file, 'w') as f:
-        f.write(str(os.getpid()))
+            # Sleep briefly to avoid busy loop if no input
+            await asyncio.sleep(5)
 
-    # Arrange for the PID file to be removed on exit
-    atexit.register(lambda: os.remove(pid_file))
+    def run_self_improvement(self):
+        """
+        Executes the self-improvement pipeline.
+        """
+        print("Daemon: Initiating self-improvement check...")
+
+        # A. Reflection
+        plan = self.reflection_module.run_reflection_cycle()
+        if not plan:
+            print("Daemon: No self-correction plan generated.")
+            return
+
+        # B. Code Modification
+        print(f"Daemon: Plan found. Generating patch...")
+        patch = self.code_modification_module.generate_patch(plan)
+        if not patch:
+            print("Daemon: No patch generated.")
+            return
+
+        # C. Deployment
+        print(f"Daemon: Patch generated. Attempting deployment...")
+        success = self.deployment_module.apply_patch(patch)
+
+        if success:
+            print("Daemon: Self-improvement cycle completed successfully.")
+        else:
+            print("Daemon: Deployment failed.")
+
+if __name__ == "__main__":
+    daemon = AutonomousAgentDaemon()
+    asyncio.run(daemon.run_loop())
