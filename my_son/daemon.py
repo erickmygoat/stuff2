@@ -1,5 +1,6 @@
 import asyncio
 import time
+import os
 from my_son.agent.agent import Agent
 from my_son.firebase.firebase_client import FirebaseClient
 from my_son.conversational.conversational_engine import ConversationalEngine
@@ -47,6 +48,10 @@ class AutonomousAgentDaemon:
         # Schedule Default Autonomous Tasks
         self._schedule_default_tasks()
 
+        # Trigger Initial Hacking Skill Acquisition (One-time)
+        if not os.path.exists(".hacking_skills_acquired"):
+            self.scheduler.add_recurring_task(0, self._acquire_hacking_skills)
+
         # Start Scheduler & Debugger
         self.scheduler.start()
         if DEBUG_MODE:
@@ -74,30 +79,31 @@ class AutonomousAgentDaemon:
         """
         Registers autonomous tasks to the scheduler.
         """
-        # 1. Security Scan (Every 60 minutes)
-        # We need a dummy code snippet or path to scan. For now, scan self.
         self.scheduler.add_recurring_task(60, self._autonomous_security_scan)
-
-        # 2. Deep Research (Every 24 hours - 1440 minutes)
         self.scheduler.add_recurring_task(1440, self._autonomous_research)
 
-        # 3. Reflection (Every 30 minutes)
-        # Note: Reflection is also called in the main loop, but we can enforce a dedicated cycle.
-        # self.scheduler.add_recurring_task(30, self.run_self_improvement)
+    def _acquire_hacking_skills(self):
+        """
+        Task: Learn from GitHub 'hacking' topic.
+        """
+        print("Daemon: Initiating Skill Acquisition: Hacking...")
+        try:
+            result = self.learner.study_topic("https://github.com/topics/hacking")
+            print(result)
+            with open(".hacking_skills_acquired", "w") as f:
+                f.write("True")
+        except Exception as e:
+            print(f"Skill Acquisition Failed: {e}")
 
     def _autonomous_security_scan(self):
         """
         Task: Scan own codebase for vulnerabilities.
         """
         print("Daemon: Running autonomous security scan...")
-        # Simplification: Scan a key file
         try:
             with open("my_son/server.py", "r") as f:
                 code = f.read()
             report = self.security.scan_code_vulnerabilities(code)
-            # In a real async context we'd await, but scheduler runs in thread.
-            # We can't easily await state_manager here without a loop.
-            # Just print for now.
             print(f"Security Report: {report[:100]}...")
         except Exception as e:
             print(f"Security Scan Failed: {e}")
@@ -117,22 +123,17 @@ class AutonomousAgentDaemon:
         """
         Executes the self-improvement pipeline.
         """
-        # A. Reflection
         plan = self.reflection_module.run_reflection_cycle()
         if not plan:
             return
 
-        # Use asyncio.create_task only if there is a running loop, which there is (run_loop).
-        # But this method is called from run_loop, so it's fine.
         asyncio.create_task(state_manager.log_activity("Self-Correction Plan generated."))
-
-        # B. Code Modification
         asyncio.create_task(state_manager.update_state("current_task", "Self-Improving"))
+
         patch = self.code_modification_module.generate_patch(plan)
         if not patch:
             return
 
-        # C. Deployment
         asyncio.create_task(state_manager.log_activity("Deploying patch..."))
         success = self.deployment_module.apply_patch(patch)
 
