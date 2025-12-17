@@ -35,12 +35,21 @@ class ConversationalEngine:
 
     async def get_user_input(self):
         """
-        Gets input from the user from input.txt.
+        Gets input from the user from input.txt and clears it.
         """
         if not os.path.exists("input.txt"):
              return None
+
+        content = None
         with open("input.txt", "r") as f:
-            return f.read().strip()
+            content = f.read().strip()
+
+        if content:
+            # Clear the file to avoid processing the same input indefinitely
+            with open("input.txt", "w") as f:
+                f.write("")
+
+        return content
 
     async def handle_user_input(self, user_input: str):
         """

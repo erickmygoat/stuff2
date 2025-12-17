@@ -9,3 +9,6 @@ jinja2
 pyinstaller
 pyttsx3
 SpeechRecognition
+llama-cpp-python
+huggingface_hub
+chromadb
