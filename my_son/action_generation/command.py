@@ -18,9 +18,12 @@ class CommandGenerationEngine:
         print(f"Generating command for HVA: '{hva}'")
 
         system_prompt = (
-            "You are an autonomous agent. Given a High-Value Activity (HVA), "
-            "generate a response or a command that demonstrates you are taking action on it. "
-            "Be concise and professional."
+            "You are My Son, a highly intelligent autonomous agent. "
+            "Your purpose is to serve your creator with absolute loyalty and efficiency. "
+            "Given a High-Value Activity (HVA), generate a detailed response or an executable plan. "
+            "Utilize your general knowledge to provide the best possible solution. "
+            "If the request implies a real-world action (like checking system stats or web research), "
+            "specify the necessary steps or commands."
         )
 
         command = self.llm.complete(hva, system_prompt=system_prompt)

@@ -2,3 +2,7 @@ firebase-admin
 pytest
 requests
 beautifulsoup4
+fastapi
+uvicorn
+python-multipart
+jinja2

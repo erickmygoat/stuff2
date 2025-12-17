@@ -1,22 +1,15 @@
-import asyncio
-from my_son.firebase.firebase_client import FirebaseClient
-from my_son.agent.agent import Agent
-from my_son.conversational.conversational_engine import ConversationalEngine
+import uvicorn
+import os
 
-async def main():
+def main():
     """
-    The main entry point for the 'My Son' agent.
+    Entry point for the My Son Agent Web Server.
     """
-    print("Starting agent...")
+    print("Starting My Son Agent Server...")
 
-    # Initialize Firebase and Agent
-    firebase_client = FirebaseClient()
-    # TODO: Get the user_id from a secure source.
-    agent = Agent(user_id="test_user", firebase_client=firebase_client)
-
-    # Start the conversational engine
-    conversational_engine = ConversationalEngine(agent)
-    await conversational_engine.start_conversation()
+    # Run the Uvicorn server
+    # The app is defined in my_son.server:app
+    uvicorn.run("my_son.server:app", host="0.0.0.0", port=8000, reload=True)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
