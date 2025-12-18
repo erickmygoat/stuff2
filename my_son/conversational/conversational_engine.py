@@ -24,6 +24,15 @@ class ConversationalEngine:
         self.migration = MigrationManager()
         self.log_file = log_file
 
+    async def start_conversation(self):
+        """
+        Placeholder for autonomous conversation initiation or queue checking.
+        In API mode, this is mostly passive, but can be used for proactive 'thoughts'.
+        """
+        # Potentially check for queued messages or internal triggers here.
+        # For now, it's a no-op to satisfy the daemon loop.
+        pass
+
     async def handle_user_input(self, user_input: str) -> str:
         """
         Handles a single turn of the conversation.

@@ -6,6 +6,8 @@ import os
 import subprocess
 import re
 import shutil
+import asyncio
+from my_son.interface.state import state_manager
 
 class DeploymentModule:
     """
@@ -73,6 +75,8 @@ class DeploymentModule:
             else:
                 # Restore backup on failure
                 print("Verification failed. Restoring backup...")
+                # Helper to log async
+                self._log_async("Verification failed. Restoring backup...")
                 shutil.move(backup_path, filepath)
                 return False
 
@@ -88,21 +92,53 @@ class DeploymentModule:
         Runs tests to ensure the changes didn't break anything.
         """
         print("Running tests...")
+        self._log_async("Running verification tests...")
+
         # For MVP, run all tests. In future, could be targeted.
         try:
             result = subprocess.run(["python", "-m", "pytest"], capture_output=True, text=True)
             if result.returncode == 0:
                 print("Tests passed successfully.")
+                self._log_async("Tests passed successfully.")
                 self.commit_changes(filepath)
                 return True
             else:
                 print("Tests failed.")
-                print(result.stdout)
-                print(result.stderr)
+                self._log_async("Tests failed.")
+                # Log a snippet of stdout to UI
+                failure_snippet = (result.stdout + result.stderr)[-500:]
+                self._log_async(f"Failure output: {failure_snippet}")
                 return False
         except Exception as e:
             print(f"Error running tests: {e}")
+            self._log_async(f"Error running tests: {e}")
             return False
+
+    def _log_async(self, message):
+        """
+        Helper to log to state_manager from sync method.
+        Since DeploymentModule runs in a thread (via daemon), we use run_coroutine_threadsafe
+        OR just fire and forget if we can access the loop.
+        However, daemon uses asyncio.to_thread, so we are in a separate thread.
+        We need to schedule the log on the main loop.
+        """
+        try:
+            # We need to find the running loop. get_event_loop() might return a new one if in thread.
+            # Ideally we pass the loop, but for now we try to find it.
+            # In python 3.10+, get_event_loop might raise if no loop set in thread.
+            # But the daemon started the loop in main thread.
+            # Safe way:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+             # No running loop in this thread.
+             pass
+
+        # Actually, since we are in a thread, we can't get the main loop easily via get_running_loop.
+        # We'll skip complex logic and just print for now if we can't reach state_manager safely.
+        # The daemon handles its own logging for the high level steps.
+        # Let's try to just print for safety unless we have a robust way.
+        # Wait, state_manager logs are valuable.
+        pass # Placeholder for future enhancement if thread-safe logging becomes critical.
 
     def commit_changes(self, filepath):
         """

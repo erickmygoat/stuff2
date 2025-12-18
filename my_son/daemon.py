@@ -37,15 +37,15 @@ class AutonomousAgentDaemon:
         self.security = SecurityResearcher()
         self.learner = DeepLearner()
 
+        # Schedule Default Autonomous Tasks immediately
+        self._schedule_default_tasks()
+
     async def run_loop(self):
         """
         Runs the main loop: Conversation -> Reflection -> Self-Correction.
         """
         print("Starting Autonomous Agent Daemon: My Son is Alive.")
         await state_manager.log_activity("My Son is Alive. Daemon started.")
-
-        # Schedule Default Autonomous Tasks
-        self._schedule_default_tasks()
 
         # Start Scheduler & Debugger
         self.scheduler.start()
@@ -64,8 +64,9 @@ class AutonomousAgentDaemon:
             # 1. Run Conversation / User Interaction
             await self.conversational_engine.start_conversation()
 
-            # 2. Run Self-Improvement Cycle
-            self.run_self_improvement()
+            # 2. Run Self-Improvement Cycle (Non-blocking)
+            # We run this in a thread executor to prevent blocking the async loop/websocket heartbeat
+            await asyncio.to_thread(self.run_self_improvement)
 
             # Sleep briefly to avoid busy loop
             await asyncio.sleep(5)

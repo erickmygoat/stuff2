@@ -5,6 +5,9 @@ import logging
 from my_son.brain.memory import Memory
 from my_son.sync.swarm import SwarmManager
 
+class LLMConnectionError(Exception):
+    pass
+
 class LLMClient:
     """
     A unified client handling Local Sovereignty (Ollama) as default, with fallbacks.
@@ -89,6 +92,11 @@ class LLMClient:
             response.raise_for_status()
             result = response.json().get('response', '').strip()
             return result
+        except requests.exceptions.ConnectionError:
+             self.logger.error("Local LLM Connection Refused. Is Ollama running?")
+             raise LLMConnectionError("Could not connect to Ollama. Brain is offline.")
         except Exception as e:
             self.logger.error(f"Local LLM failed: {e}")
+            # For chat, return string. For code/others, raise.
+            # We'll return the error string but log it heavily.
             return f"[Error] My brain is offline. Please ensure Ollama is running with model '{model_to_use}'. ({e})"

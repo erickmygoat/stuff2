@@ -59,16 +59,11 @@ class DeepLearner:
             return [query]
 
         # Basic DuckDuckGo HTML scrape (Fragile, but free/MVP)
-        # Or use a placeholder list for the sandbox environment if internet is restricted in a specific way.
-        # Sandbox has 'google_search' tool available! I should use that if I were the agent calling tools.
-        # But here I am writing the *code* for the agent. The agent doesn't have the 'google_search' tool
-        # embedded in its python code unless I implement it.
-
-        # Implementation of a simple DDG scraper for MVP:
         try:
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             url = f"https://html.duckduckgo.com/html/?q={query}"
-            res = requests.get(url, headers=headers, timeout=10)
+            res = requests.get(url, headers=headers, timeout=15) # Increased timeout
+            res.raise_for_status()
             soup = BeautifulSoup(res.text, 'html.parser')
 
             results = []
@@ -87,7 +82,7 @@ class DeepLearner:
         """
         try:
             headers = {'User-Agent': 'Mozilla/5.0'}
-            res = requests.get(url, headers=headers, timeout=10)
+            res = requests.get(url, headers=headers, timeout=15) # Increased timeout
             soup = BeautifulSoup(res.text, 'html.parser')
 
             # Remove script/style
