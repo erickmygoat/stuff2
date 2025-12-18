@@ -1,18 +1,25 @@
 """
-This module provides voice capabilities (TTS and STT) using gTTS and SpeechRecognition.
+This module provides voice capabilities (TTS and STT).
+Optimized for cross-platform usage (gTTS for Linux/Mac quality, pyttsx3 for Windows native integration).
 """
 import logging
 import os
 import time
 
+# TTS Engines
+try:
+    import pyttsx3
+    PYTTSX3_AVAILABLE = True
+except ImportError:
+    PYTTSX3_AVAILABLE = False
+
 try:
     from gtts import gTTS
-    # We need a way to play audio. os.system with mpg123 or similar is common on linux.
-    # For cross-platform, playsound or similar is needed, but for MVP/Sandbox we just simulate or assume standard tools.
     GTTS_AVAILABLE = True
 except ImportError:
     GTTS_AVAILABLE = False
 
+# STT Engine
 try:
     import speech_recognition as sr
     STT_AVAILABLE = True
@@ -26,32 +33,50 @@ class VoiceInterface:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.os_type = os.name # 'nt' for Windows, 'posix' for Linux/Mac
+
+        # Initialize pyttsx3 engine if on Windows
+        self.engine = None
+        if self.os_type == 'nt' and PYTTSX3_AVAILABLE:
+            try:
+                self.engine = pyttsx3.init()
+            except Exception as e:
+                self.logger.warning(f"Failed to init pyttsx3: {e}")
 
     def speak(self, text):
         """
-        Converts text to speech using Google TTS and plays it.
+        Converts text to speech.
         """
         print(f"[VOICE OUTPUT]: {text}")
-        if not GTTS_AVAILABLE:
-             self.logger.warning("gTTS not installed.")
-             return
 
-        try:
-            tts = gTTS(text=text, lang='en')
-            filename = f"speech_{int(time.time())}.mp3"
-            tts.save(filename)
+        # Strategy: Use pyttsx3 on Windows (Native, Offline, No Popups)
+        if self.os_type == 'nt' and self.engine:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+                return
+            except Exception as e:
+                self.logger.error(f"pyttsx3 Error: {e}")
 
-            # Simple playback logic
-            if os.name == 'posix':
-                # Try common players
-                os.system(f"mpg123 -q {filename} || aplay {filename} || true")
-            elif os.name == 'nt':
-                os.system(f"start {filename}")
+        # Strategy: Use gTTS on Linux/Mac or as fallback
+        if GTTS_AVAILABLE:
+            try:
+                tts = gTTS(text=text, lang='en')
+                filename = f"speech_{int(time.time())}.mp3"
+                tts.save(filename)
 
-            # Cleanup (optional, maybe keep cache)
-            # os.remove(filename)
-        except Exception as e:
-            self.logger.error(f"TTS Error: {e}")
+                if self.os_type == 'posix':
+                    # Try common linux players
+                    os.system(f"mpg123 -q {filename} || aplay {filename} || true")
+                elif self.os_type == 'nt':
+                    # Fallback for Windows if pyttsx3 failed (not ideal, but audible)
+                    os.system(f"start {filename}")
+
+                # Cleanup? Maybe keep cache.
+            except Exception as e:
+                self.logger.error(f"gTTS Error: {e}")
+        else:
+            self.logger.warning("No TTS engine available.")
 
     def listen(self):
         """
@@ -66,7 +91,6 @@ class VoiceInterface:
             print("Listening... (Adjusting for ambient noise)")
             recognizer.adjust_for_ambient_noise(source, duration=1)
             try:
-                # Dynamic timeout handled by library somewhat, but we set explicit ones
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
                 text = recognizer.recognize_google(audio)
                 print(f"[VOICE INPUT]: {text}")
