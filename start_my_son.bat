@@ -16,6 +16,13 @@ if %errorlevel% neq 0 (
 :: Install Deps Globally (Directly to Computer)
 echo Installing dependencies to your system Python...
 pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Failed to install dependencies.
+    echo Please check your internet connection or Python installation.
+    pause
+    exit /b
+)
 
 :: Check for Ollama
 curl -s http://localhost:11434/api/tags >nul 2>&1
