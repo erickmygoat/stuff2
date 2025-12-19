@@ -14,12 +14,17 @@ class ReflectionModule:
     def __init__(self, log_file="performance.jsonl"):
         self.log_file = log_file
         self.llm = LLMClient()
+        # Ensure log file exists
+        try:
+            with open(self.log_file, 'a'):
+                pass
+        except IOError:
+            pass
 
     def run_reflection_cycle(self):
         """
         Reads the performance logs and generates a self-correction plan.
         """
-        print("--- Running Reflection Cycle ---")
         logs = []
         try:
             with open(self.log_file, 'r') as f:
@@ -28,12 +33,12 @@ class ReflectionModule:
                     if line:
                         logs.append(json.loads(line))
         except FileNotFoundError:
-            print("Performance log file not found. Skipping reflection cycle.")
             return
 
         if not logs:
-            print("No logs to analyze.")
             return
+
+        print("--- Running Reflection Cycle ---")
 
         # Analyze the last few logs (e.g., last 5) to avoid huge context
         recent_logs = logs[-5:]

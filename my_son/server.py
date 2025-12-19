@@ -51,7 +51,8 @@ async def startup_event():
         if NGROK_TOKEN:
             ngrok.set_auth_token(NGROK_TOKEN)
 
-        public_url = ngrok.connect(SWARM_PORT).public_url
+        # Explicitly request http tunnel to avoid implicit domain config issues
+        public_url = ngrok.connect(SWARM_PORT, "http").public_url
         print(f"Server: Global Access URL: {public_url}")
         await state_manager.log_activity(f"Global Access enabled: {public_url}")
     except ImportError:
