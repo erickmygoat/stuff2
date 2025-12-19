@@ -199,11 +199,17 @@
 
         function addMessage(sender, text, type) {
             const msgs = document.getElementById('messages');
+            // Smart Scroll: Check if user is near bottom before appending
+            const isScrolledToBottom = msgs.scrollHeight - msgs.clientHeight <= msgs.scrollTop + 100;
+
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             div.innerHTML = `<strong>${sender}:</strong> ${text.replace(/\n/g, '<br>')}`;
             msgs.appendChild(div);
-            msgs.scrollTop = msgs.scrollHeight;
+
+            if (isScrolledToBottom) {
+                msgs.scrollTop = msgs.scrollHeight;
+            }
         }
 
         function handleKey(e) {

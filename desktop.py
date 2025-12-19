@@ -30,8 +30,8 @@ def main():
     # Give it a second to warm up
     time.sleep(2)
 
-    # 2. Open Window
-    webview.create_window("My Son: Sovereign AGI", "http://127.0.0.1:8000", width=1200, height=800, background_color='#0d1117')
+    # 2. Open Window (Launcher/Setup first)
+    webview.create_window("My Son: Sovereign AGI", "http://127.0.0.1:8000/setup", width=1200, height=800, background_color='#0d1117')
     webview.start(debug=True)
 
 if __name__ == '__main__':

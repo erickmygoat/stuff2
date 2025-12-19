@@ -101,11 +101,18 @@ class SwarmTask(BaseModel):
     prompt: str
     system_prompt: str
 
+class ConfigRequest(BaseModel):
+    token: str
+
 # --- Routes ---
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/setup", response_class=HTMLResponse)
+async def read_setup(request: Request):
+    return templates.TemplateResponse(request=request, name="setup.html")
 
 @app.get("/mobile", response_class=HTMLResponse)
 async def read_mobile(request: Request):
@@ -218,3 +225,14 @@ async def swarm_generate(task: SwarmTask):
         use_swarm=False
     )
     return {"response": response}
+
+@app.post("/api/config/ngrok")
+async def configure_ngrok(config: ConfigRequest):
+    try:
+        from pyngrok import ngrok
+        if config.token:
+            ngrok.set_auth_token(config.token)
+            print("Server: Ngrok token updated via Setup.")
+            return {"status": "success"}
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pyngrok not installed")
