@@ -34,6 +34,7 @@ MASTERMIND_IP = _current_config["MASTERMIND_IP"]
 
 # Network
 SWARM_PORT = int(os.environ.get("MY_SON_SWARM_PORT", "8000"))
+NGROK_TOKEN = os.environ.get("NGROK_TOKEN", "372eGTZwkz4dJGufujlaO3p2LQB_4UmypEekK5vxdToMRYvAg")
 
 # AI Model
 DEFAULT_MODEL = os.environ.get("MY_SON_MODEL", "llama3")

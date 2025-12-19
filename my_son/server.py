@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from my_son.daemon import AutonomousAgentDaemon
 from my_son.action_generation.executor import ActionExecutor
-from my_son.config import update_identity, IS_MASTERMIND
+from my_son.config import update_identity, IS_MASTERMIND, NGROK_TOKEN
 from my_son.agent.llm import LLMClient
 from my_son.interface.state import state_manager
 from my_son.interface.vision import VisionInterface
@@ -47,6 +47,10 @@ async def startup_event():
 
     try:
         from pyngrok import ngrok
+        # Configure auth token
+        if NGROK_TOKEN:
+            ngrok.set_auth_token(NGROK_TOKEN)
+
         public_url = ngrok.connect(SWARM_PORT).public_url
         print(f"Server: Global Access URL: {public_url}")
         await state_manager.log_activity(f"Global Access enabled: {public_url}")
