@@ -15,4 +15,4 @@ gTTS
 pyngrok
 psutil
 Pillow
-Pillow
+pywebview
