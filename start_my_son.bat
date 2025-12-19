@@ -1,6 +1,13 @@
 @echo off
 setlocal
-:: Ensure UTF-8 output for emojis and text
+
+:: 1. Set Working Directory to Script Location
+cd /d "%~dp0"
+
+:: 2. Ensure PYTHONPATH includes current directory for subprocesses
+set PYTHONPATH=%~dp0;%PYTHONPATH%
+
+:: 3. Ensure UTF-8 output
 set PYTHONUTF8=1
 
 echo Initializing My Son (Windows Global Mode)...
