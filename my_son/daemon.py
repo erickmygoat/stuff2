@@ -13,6 +13,7 @@ from my_son.agent.scheduler import Scheduler
 from my_son.self_improvement.debugger import AutoDoctor
 from my_son.security.researcher import SecurityResearcher
 from my_son.brain.deep_learner import DeepLearner
+from my_son.brain.prioritization import HVAPrioritization
 from my_son.config import DEBUG_MODE
 
 class AutonomousAgentDaemon:
@@ -36,8 +37,10 @@ class AutonomousAgentDaemon:
         self.debugger = AutoDoctor()
         self.security = SecurityResearcher()
         self.learner = DeepLearner()
+        self.prioritizer = HVAPrioritization()
+        self.last_decision_time = 0
 
-        # Schedule Default Autonomous Tasks immediately
+        # Schedule Default Autonomous Tasks immediately (Fallback/Guaranteed tasks)
         self._schedule_default_tasks()
 
     async def run_loop(self):
@@ -45,6 +48,7 @@ class AutonomousAgentDaemon:
         Runs the main loop: Conversation -> Reflection -> Self-Correction.
         """
         print("Starting Autonomous Agent Daemon: My Son is Alive.")
+        self.loop = asyncio.get_running_loop()
         await state_manager.log_activity("My Son is Alive. Daemon started.")
 
         # Start Scheduler & Debugger
@@ -64,9 +68,20 @@ class AutonomousAgentDaemon:
             # 1. Run Conversation / User Interaction
             await self.conversational_engine.start_conversation()
 
-            # 2. Run Self-Improvement Cycle (Non-blocking)
-            # We run this in a thread executor to prevent blocking the async loop/websocket heartbeat
-            await asyncio.to_thread(self.run_self_improvement)
+            # 2. Autonomous Prioritization (Every 30s)
+            if time.time() - self.last_decision_time > 30:
+                self.last_decision_time = time.time()
+                action = await asyncio.to_thread(self.prioritizer.decide_next_action, {"stats": state_manager.get_system_stats()})
+
+                if action != "WAIT":
+                    await state_manager.log_activity(f"Brain: Decided to {action}...")
+
+                if action == "SELF_CORRECT":
+                    await asyncio.to_thread(self.run_self_improvement)
+                elif action == "RESEARCH":
+                    await asyncio.to_thread(self._autonomous_research)
+                elif action == "SECURITY_SCAN":
+                    await asyncio.to_thread(self._autonomous_security_scan)
 
             # Sleep briefly to avoid busy loop
             await asyncio.sleep(5)
@@ -117,33 +132,41 @@ class AutonomousAgentDaemon:
     def run_self_improvement(self):
         """
         Executes the self-improvement pipeline.
+        Runs in a separate thread, so must use run_coroutine_threadsafe for async calls.
         """
         # A. Reflection
         plan = self.reflection_module.run_reflection_cycle()
         if not plan:
             return
 
-        # Use asyncio.create_task only if there is a running loop, which there is (run_loop).
-        # But this method is called from run_loop, so it's fine.
-        asyncio.create_task(state_manager.log_activity("Self-Correction Plan generated."))
+        # Use run_coroutine_threadsafe to schedule async work on the main loop
+        if hasattr(self, 'loop'):
+            asyncio.run_coroutine_threadsafe(state_manager.log_activity("Self-Correction Plan generated."), self.loop)
 
         # B. Code Modification
-        asyncio.create_task(state_manager.update_state("current_task", "Self-Improving"))
+        if hasattr(self, 'loop'):
+            asyncio.run_coroutine_threadsafe(state_manager.update_state("current_task", "Self-Improving"), self.loop)
+
         patch = self.code_modification_module.generate_patch(plan)
         if not patch:
             return
 
         # C. Deployment
-        asyncio.create_task(state_manager.log_activity("Deploying patch..."))
+        if hasattr(self, 'loop'):
+            asyncio.run_coroutine_threadsafe(state_manager.log_activity("Deploying patch..."), self.loop)
+
         success = self.deployment_module.apply_patch(patch)
 
-        if success:
-            asyncio.create_task(state_manager.log_activity("Self-improvement successful."))
-            self.voice_interface.speak("I have upgraded my code.")
-        else:
-            asyncio.create_task(state_manager.log_activity("Deployment failed."))
+        if hasattr(self, 'loop'):
+            if success:
+                asyncio.run_coroutine_threadsafe(state_manager.log_activity("Self-improvement successful."), self.loop)
+                # voice_interface.speak is sync or async? It's likely sync using pyttsx3 or similar, but check.
+                # If it's safe to run in thread, fine.
+                self.voice_interface.speak("I have upgraded my code.")
+            else:
+                asyncio.run_coroutine_threadsafe(state_manager.log_activity("Deployment failed."), self.loop)
 
-        asyncio.create_task(state_manager.update_state("current_task", "Idle"))
+            asyncio.run_coroutine_threadsafe(state_manager.update_state("current_task", "Idle"), self.loop)
 
 if __name__ == "__main__":
     daemon = AutonomousAgentDaemon()

@@ -95,6 +95,10 @@ class LLMClient:
         except requests.exceptions.ConnectionError:
              self.logger.error("Local LLM Connection Refused. Is Ollama running?")
              raise LLMConnectionError("Could not connect to Ollama. Brain is offline.")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return f"[Error] Model '{model_to_use}' not found. Please run 'ollama pull {model_to_use}' in your terminal."
+            return f"[Error] HTTP Error from Brain: {e}"
         except Exception as e:
             self.logger.error(f"Local LLM failed: {e}")
             # For chat, return string. For code/others, raise.

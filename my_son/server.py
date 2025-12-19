@@ -1,4 +1,5 @@
 import os
+import sys
 import zipfile
 import asyncio
 import logging
@@ -20,13 +21,20 @@ SECRET_TOKEN = os.environ.get("MY_SON_SECRET", "1234")
 REPO_ROOT = os.getcwd()
 SWARM_PORT = int(os.environ.get("MY_SON_SWARM_PORT", "8000"))
 
+# Determine base directory for frozen (EXE) vs script
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = REPO_ROOT
+
 app = FastAPI(title="My Son Agent API")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Mount static files
-if not os.path.exists("static"):
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(BASE_DIR, "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Initialize core components
 daemon = AutonomousAgentDaemon()
