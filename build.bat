@@ -23,5 +23,5 @@ pyinstaller --noconfirm --onefile --noconsole --name "MySonAI" ^
     --hidden-import "engineio.async_drivers.aiohttp" ^
     desktop.py
 
-echo Build Complete. Check dist/MySonAI/MySonAI.exe
+echo Build Complete. Check dist/MySonAI.exe
 pause
