@@ -7,8 +7,9 @@ if %errorlevel% neq 0 pip install pyinstaller
 
 :: Build
 :: --noconsole: Hide terminal (Standard software mode)
+:: --onefile: Bundle everything into a single .exe file
 :: --add-data: Include templates and static files
-pyinstaller --noconfirm --onedir --noconsole --name "MySonAI" ^
+pyinstaller --noconfirm --onefile --noconsole --name "MySonAI" ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
     --hidden-import "uvicorn.logging" ^
