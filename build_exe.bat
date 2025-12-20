@@ -6,9 +6,9 @@ pip show pyinstaller >nul 2>&1
 if %errorlevel% neq 0 pip install pyinstaller
 
 :: Build
-:: --noconsole: Hide terminal (remove if you want debugging)
+:: --noconsole: Hide terminal (Standard software mode)
 :: --add-data: Include templates and static files
-pyinstaller --noconfirm --onedir --console --name "MySonAI" ^
+pyinstaller --noconfirm --onedir --noconsole --name "MySonAI" ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
     --hidden-import "uvicorn.logging" ^
