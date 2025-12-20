@@ -24,33 +24,28 @@ cd my_son_agent
 ```
 *(If you downloaded the ZIP, extract it and open the folder).*
 
-### Step 2: Start the Agent
+### Step 2: Build the Agent
 
-#### On Windows (One-Click Global Mode)
-1.  Double-click `start_my_son.bat`.
-2.  This script will:
-    -   Check if Python and Ollama are ready.
-    -   Install all necessary libraries directly to your computer.
-    -   Launch the agent.
+1.  Double-click **`make_build_exe.bat`**.
+    -   This script creates a tool called `build.exe`.
+2.  Double-click **`build.exe`**.
+    -   This tool will compile the entire agent into a standalone application.
+    -   Wait for the process to say "[SUCCESS] Build Complete".
 
-#### On Mac/Linux
-1.  Open a terminal in the folder.
-2.  Run:
-    ```bash
-    chmod +x start_my_son_global.sh
-    ./start_my_son_global.sh
-    ```
+### Step 3: Run the Agent
+
+1.  Navigate to the new `dist` folder.
+2.  Double-click **`MySonAI.exe`**.
+3.  The "My Son" dashboard window will appear.
 
 ## Interacting with the Agent
 
-Once the console says **"Starting My Son Agent Server..."**:
-
-1.  **Dashboard**: Open `http://localhost:8000` in your web browser. You will see the "Living Dashboard".
-2.  **Global Access**: Look at the console output for a link like `https://<random-id>.ngrok-free.app`. You can use this to access the agent from anywhere.
+1.  **Dashboard**: The desktop window shows the "Living Dashboard".
+2.  **Global Access**: Look at the console logs (or setup logs) for a link like `https://<random-id>.ngrok-free.app`. You can use this to access the agent from anywhere.
 
 ## Mobile Setup (S21 Ultra)
 
-1.  On your phone, open the **Global Access URL** (from the console logs).
+1.  On your phone, open the **Global Access URL**.
 2.  Add `/mobile` to the end of the URL (e.g., `https://...ngrok-free.app/mobile`).
 3.  Tap the browser menu -> **"Add to Home Screen"**.
 4.  Launch the app icon to use the optimized mobile interface.
@@ -59,4 +54,4 @@ Once the console says **"Starting My Son Agent Server..."**:
 
 -   **"Python not found"**: Reinstall Python and ensure "Add to PATH" is checked.
 -   **"Ollama not running"**: Open the Ollama application from your Start Menu/Applications folder.
--   **Audio issues**: Ensure your speakers are on. On Windows, the agent uses the native system voice.
+-   **"Build Failed"**: Ensure you have an internet connection so the builder can install `pyinstaller`.
