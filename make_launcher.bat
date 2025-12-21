@@ -22,6 +22,10 @@ python -m pip install pyinstaller
 :: 3. Build Launcher.exe
 echo.
 echo [2/3] Compiling Launcher.exe...
+
+:: Ensure static directory exists (PyInstaller fails if missing)
+if not exist static mkdir static
+
 :: Using 'python -m PyInstaller' avoids "command not found" errors
 python -m PyInstaller --noconfirm --onefile --noconsole --name "Launcher" ^
     --add-data "templates;templates" ^
