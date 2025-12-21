@@ -51,7 +51,7 @@ def main():
         print("Warning: Server start timed out.")
 
     # 3. Open Window (Launcher/Setup first)
-    webview.create_window("My Son: Sovereign AGI", start_url, width=1200, height=800, background_color='#0d1117')
+    webview.create_window("Autonomous Agent", start_url, width=1200, height=800, background_color='#0d1117')
     webview.start(debug=True)
 
 if __name__ == '__main__':

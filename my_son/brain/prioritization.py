@@ -24,7 +24,7 @@ class HVAPrioritization:
         Current Time: {time.ctime()}
         Context: {str(context)}
 
-        As My Son, a Sovereign AGI, determine your next move.
+        As an autonomous agent, determine your next move.
         Available Actions:
         1. WAIT (If interacting with user or no urgent tasks)
         2. SELF_CORRECT (If errors detected or optimization needed)
