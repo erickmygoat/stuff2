@@ -14,7 +14,7 @@ class ConversationalEngine:
     The Central Controller: Manages Identity, Logic, Swarm, and Memory.
     """
 
-    def __init__(self, agent: Agent, log_file="performance.jsonl"):
+    def __init__(self, agent: Agent, log_file="performance.jsonl", history_file="chat_history.json"):
         """
         Initializes the conversational engine.
         """
@@ -23,6 +23,24 @@ class ConversationalEngine:
         self.hive = SubAgentManager()
         self.migration = MigrationManager()
         self.log_file = log_file
+        self.history_file = history_file
+        self.history = self._load_history()
+
+    def _load_history(self):
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                return []
+        return []
+
+    def _save_history(self):
+        try:
+            with open(self.history_file, 'w') as f:
+                json.dump(self.history, f, indent=2)
+        except Exception as e:
+            print(f"Failed to save history: {e}")
 
     async def start_conversation(self):
         """
@@ -75,13 +93,30 @@ class ConversationalEngine:
                 # Ideally we'd switch context or create a session.
                 return f"Spawned agent: {agent_config['name']}. Ready for tasks."
 
-        # 3. Generate Response (LLMClient handles Memory Retrieval & Swarm Delegation)
-        # We pass use_swarm=True by default for the Mastermind to leverage the hive.
-        response = self.llm.complete(
-            user_input,
-            system_prompt=self.agent.get_prompt(),
-            use_swarm=True
-        )
+        # 3. Generate Response
+        # Update History
+        self.history.append({"role": "user", "content": user_input})
+        self._save_history()
+
+        # Retrieve Context (RAG)
+        context = self.llm.memory.retrieve_context(user_input)
+        system_prompt = self.agent.get_prompt()
+        if context:
+            system_prompt += "\nRELEVANT MEMORIES:\n" + "\n".join([f"- {m}" for m in context])
+
+        # Build Prompt (System + Recent History)
+        # Keep last 20 messages for context window management
+        messages = [{"role": "system", "content": system_prompt}] + self.history[-20:]
+
+        # Use Chat API
+        response = self.llm.chat_complete(messages)
+
+        # Update History with Response
+        self.history.append({"role": "assistant", "content": response})
+        self._save_history()
+
+        # Save to Long-Term Memory (RAG)
+        self.llm.memory.save_context(user_input, response)
 
         total_duration = time.time() - start_time
         print(f"ConversationalEngine: Generated response.")

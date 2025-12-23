@@ -27,9 +27,51 @@ class LLMClient:
         if self.api_key and "openai.com" in self.api_url:
             self.mode = "remote"
 
+    def chat_complete(self, messages, max_tokens=1000, images=None):
+        """
+        Chat completion using /api/chat (Messages API).
+        messages: List of {"role": "...", "content": "..."}
+        """
+        model_to_use = self.model
+        if images and "llama" in self.model:
+            model_to_use = "llava"
+
+        # Construct endpoint URL (replace /api/generate with /api/chat)
+        chat_url = self.api_url.replace("/api/generate", "/api/chat")
+
+        data = {
+            "model": model_to_use,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "num_predict": max_tokens,
+                "temperature": 0.7
+            }
+        }
+
+        # Note: Ollama /api/chat handles images inside the message object,
+        # but for simplicity we assume the LAST message has the image if provided separately.
+        if images:
+            # Attach images to the last user message
+            if messages and messages[-1]['role'] == 'user':
+                messages[-1]['images'] = images
+
+        try:
+            response = requests.post(chat_url, json=data, timeout=60)
+            response.raise_for_status()
+            result = response.json().get('message', {}).get('content', '').strip()
+            return result
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                 return f"[Error] Model '{model_to_use}' not found. Please run 'ollama pull {model_to_use}'."
+            return f"[Error] HTTP Error: {e}"
+        except Exception as e:
+            self.logger.error(f"Chat LLM failed: {e}")
+            return f"[Error] Brain offline: {e}"
+
     def complete(self, prompt, system_prompt="You are a helpful assistant.", max_tokens=1000, use_swarm=False, images=None):
         """
-        Generates a completion using the local Sovereign Brain or the Swarm.
+        Legacy completion using the local Sovereign Brain or the Swarm.
         Supports images (base64 encoded strings list).
         """
         # 1. Enhance Prompt with Long-Term Memory
