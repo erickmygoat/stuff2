@@ -6,6 +6,7 @@ import re
 from my_son.agent.agent import Agent
 from my_son.agent.llm import LLMClient
 from my_son.agent.hive import SubAgentManager
+from my_son.agent.tools import ToolExecutor, TOOL_DEFINITIONS
 from my_son.sync.migration import MigrationManager
 from my_son.config import IS_MASTERMIND, MASTERMIND_IP
 
@@ -22,6 +23,7 @@ class ConversationalEngine:
         self.llm = LLMClient()
         self.hive = SubAgentManager()
         self.migration = MigrationManager()
+        self.tool_executor = ToolExecutor()
         self.log_file = log_file
         self.history_file = history_file
         self.history = self._load_history()
@@ -41,6 +43,27 @@ class ConversationalEngine:
                 json.dump(self.history, f, indent=2)
         except Exception as e:
             print(f"Failed to save history: {e}")
+
+    def _parse_tool_call(self, response):
+        """
+        Extracts JSON tool call from response.
+        """
+        try:
+            # Look for JSON block
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+            elif "{" in response and "}" in response:
+                # Try to parse the whole string or substring
+                json_str = response.strip()
+            else:
+                return None
+
+            data = json.loads(json_str)
+            if "tool" in data and "args" in data:
+                return data
+        except:
+            return None
+        return None
 
     async def start_conversation(self):
         """
@@ -111,12 +134,34 @@ class ConversationalEngine:
         if rules:
             system_prompt += f"\nAPPLICABLE LEARNED RULES:\n{rules}\n"
 
+        # Append Tool Definitions
+        system_prompt += "\n" + TOOL_DEFINITIONS
+
         # Build Prompt (System + Recent History)
         # Keep last 20 messages for context window management
         messages = [{"role": "system", "content": system_prompt}] + self.history[-20:]
 
         # Use Chat API
         response = self.llm.chat_complete(messages)
+
+        # Check for Tool Call
+        tool_call = self._parse_tool_call(response)
+        if tool_call:
+            print(f"ConversationalEngine: Tool Call Detected: {tool_call['tool']}")
+            # Execute
+            result = self.tool_executor.execute(tool_call['tool'], tool_call['args'])
+
+            # Feed result back
+            # We construct a temporary message chain to get final answer
+            # We don't necessarily save the tool call JSON to history unless we want to.
+            # For user UX, we just want the final answer.
+            # But the LLM needs to know it called the tool.
+
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "system", "content": f"Tool Output: {result}"})
+
+            final_response = self.llm.chat_complete(messages)
+            response = final_response # Override response with final answer
 
         # Update History with Response
         self.history.append({"role": "assistant", "content": response})
