@@ -14,6 +14,7 @@ from my_son.self_improvement.debugger import AutoDoctor
 from my_son.security.researcher import SecurityResearcher
 from my_son.brain.deep_learner import DeepLearner
 from my_son.brain.prioritization import HVAPrioritization
+from my_son.learning.seal import SEALEngine
 from my_son.config import DEBUG_MODE
 
 class AutonomousAgentDaemon:
@@ -38,6 +39,7 @@ class AutonomousAgentDaemon:
         self.security = SecurityResearcher()
         self.learner = DeepLearner()
         self.prioritizer = HVAPrioritization()
+        self.seal_engine = SEALEngine()
         self.last_decision_time = 0
 
         # Schedule Default Autonomous Tasks immediately (Fallback/Guaranteed tasks)
@@ -120,12 +122,17 @@ class AutonomousAgentDaemon:
 
     def _autonomous_research(self):
         """
-        Task: Research AI advancements.
+        Task: Research AI advancements and apply SEAL.
         """
         print("Daemon: Running autonomous research...")
         try:
-            summary = self.learner.study_topic("Latest advancements in Autonomous AI Agents")
-            print(f"Research Summary: {summary}")
+            topic = "Latest advancements in Autonomous AI Agents"
+            summary = self.learner.study_topic(topic)
+            print(f"Research Summary: {summary[:100]}...")
+
+            # Apply SEAL
+            self.seal_engine.perform_adaptation(topic, summary)
+
         except Exception as e:
             print(f"Research Failed: {e}")
 

@@ -1,3 +1,5 @@
+import json
+import os
 from my_son.firebase.firebase_client import FirebaseClient
 from my_son.osint.osint_service_manager import OSINTServiceManager
 from my_son.osint.sherlock_client import SherlockClient
@@ -79,6 +81,23 @@ class Agent:
             str: The full text of the agent's core instructions.
         """
         base_prompt = self.prompt if self.prompt else ""
+
+        # Load SEAL Learned Rules
+        learned_block = ""
+        try:
+            rule_path = "brain_memory/learned_rules.json"
+            if os.path.exists(rule_path):
+                with open(rule_path, 'r') as f:
+                    data = json.load(f)
+                    if data:
+                        learned_block = "\n\nLEARNED KNOWLEDGE & RULES (SEAL):\n"
+                        for entry in data:
+                            learned_block += f"[{entry['topic']}]\n"
+                            for rule in entry['rules']:
+                                learned_block += f"- {rule}\n"
+        except Exception as e:
+            print(f"Error loading learned rules: {e}")
+
         enhanced_prompt = (
             f"{base_prompt}\n\n"
             "ADDITIONAL DIRECTIVES:\n"
@@ -88,5 +107,6 @@ class Agent:
             "Do not wait for instructions if you see a clear path to optimizing the user's goals.\n"
             "4. EFFICIENCY: Strive for the most efficient and effective solution. "
             "Avoid unnecessary pleasantries or philosophical tangents. Be concise and functional."
+            f"{learned_block}"
         )
         return enhanced_prompt

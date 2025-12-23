@@ -30,6 +30,7 @@ class HVAPrioritization:
         2. SELF_CORRECT (If errors detected or optimization needed)
         3. RESEARCH (If idle and knowledge gaps exist)
         4. SECURITY_SCAN (If security check is due)
+        5. LEARN (If a new topic needs internalizing via SEAL)
 
         Return ONLY the action keyword (e.g., "WAIT").
         """
@@ -43,6 +44,7 @@ class HVAPrioritization:
             if "SELF_CORRECT" in normalized: return "SELF_CORRECT"
             if "RESEARCH" in normalized: return "RESEARCH"
             if "SECURITY_SCAN" in normalized: return "SECURITY_SCAN"
+            if "LEARN" in normalized: return "LEARN"
 
             return "WAIT"
         except Exception as e:
