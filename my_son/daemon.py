@@ -80,8 +80,11 @@ class AutonomousAgentDaemon:
 
                 if action == "SELF_CORRECT":
                     await asyncio.to_thread(self.run_self_improvement)
-                elif action == "RESEARCH":
+                elif action == "RESEARCH" or action == "LEARN":
                     await asyncio.to_thread(self._autonomous_research)
+                elif action == "CONSOLIDATE":
+                    await state_manager.log_activity("Brain: Consolidating Knowledge...")
+                    await asyncio.to_thread(self.seal_engine.consolidate_knowledge)
                 elif action == "SECURITY_SCAN":
                     await asyncio.to_thread(self._autonomous_security_scan)
 

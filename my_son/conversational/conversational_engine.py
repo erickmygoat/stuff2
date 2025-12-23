@@ -100,9 +100,16 @@ class ConversationalEngine:
 
         # Retrieve Context (RAG)
         context = self.llm.memory.retrieve_context(user_input)
+
+        # Retrieve Contextual Rules (SEAL++)
+        rules = self.llm.memory.retrieve_relevant_rules(user_input)
+
         system_prompt = self.agent.get_prompt()
         if context:
             system_prompt += "\nRELEVANT MEMORIES:\n" + "\n".join([f"- {m}" for m in context])
+
+        if rules:
+            system_prompt += f"\nAPPLICABLE LEARNED RULES:\n{rules}\n"
 
         # Build Prompt (System + Recent History)
         # Keep last 20 messages for context window management

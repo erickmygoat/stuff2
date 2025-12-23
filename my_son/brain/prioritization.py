@@ -31,6 +31,7 @@ class HVAPrioritization:
         3. RESEARCH (If idle and knowledge gaps exist)
         4. SECURITY_SCAN (If security check is due)
         5. LEARN (If a new topic needs internalizing via SEAL)
+        6. CONSOLIDATE (If many rules have been learned and need cleanup)
 
         Return ONLY the action keyword (e.g., "WAIT").
         """
@@ -45,6 +46,7 @@ class HVAPrioritization:
             if "RESEARCH" in normalized: return "RESEARCH"
             if "SECURITY_SCAN" in normalized: return "SECURITY_SCAN"
             if "LEARN" in normalized: return "LEARN"
+            if "CONSOLIDATE" in normalized: return "CONSOLIDATE"
 
             return "WAIT"
         except Exception as e:

@@ -125,4 +125,66 @@ class SEALEngine:
         with open(self.memory_path, 'w') as f:
             json.dump(current_rules, f, indent=2)
 
+        # Also store in Vector DB
+        for rule in rules:
+            self.llm.memory.store_rule(rule, topic)
+
         print("SEAL: Knowledge integrated.")
+
+    def consolidate_knowledge(self):
+        """
+        Meta-Optimization: Reads all rules, merges duplicates, refines logic.
+        Surpasses SEAL by preventing rule bloat and catastrophic forgetting.
+        """
+        print("SEAL: Consolidating Knowledge Base...")
+        if not os.path.exists(self.memory_path):
+            return
+
+        try:
+            with open(self.memory_path, 'r') as f:
+                data = json.load(f)
+        except: return
+
+        if not data: return
+
+        # 1. Flatten Rules
+        all_rules_text = ""
+        for entry in data:
+            all_rules_text += f"Topic: {entry['topic']}\nRules:\n" + "\n".join(entry['rules']) + "\n\n"
+
+        # 2. Ask LLM to optimize
+        prompt = f"""
+        Current Knowledge Base:
+        {all_rules_text[:10000]}
+
+        Task:
+        1. Merge duplicate rules.
+        2. Remove obsolete or conflicting rules (keep the most recent/accurate).
+        3. Refine wording for clarity and efficiency.
+        4. Group by Topic.
+
+        Output JSON:
+        [
+            {{"topic": "topic name", "rules": ["rule 1", "rule 2"]}},
+            ...
+        ]
+        """
+        try:
+            response = self.llm.complete(prompt, system_prompt="You are a Knowledge Architect.")
+            clean_resp = response.strip().replace("```json", "").replace("```", "")
+            new_data = json.loads(clean_resp)
+
+            # 3. Update JSON
+            with open(self.memory_path, 'w') as f:
+                json.dump(new_data, f, indent=2)
+
+            # 4. Re-index Vector DB
+            self.llm.memory.reset_rules()
+            for entry in new_data:
+                for rule in entry['rules']:
+                    self.llm.memory.store_rule(rule, entry['topic'])
+
+            print("SEAL: Knowledge Consolidated and Optimized.")
+
+        except Exception as e:
+            print(f"Consolidation Failed: {e}")
