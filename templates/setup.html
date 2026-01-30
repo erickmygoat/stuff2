@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Son Launcher</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #161b22;
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            width: 400px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #00ff41;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .status-ok { color: #238636; }
+        .status-err { color: #da3633; }
+
+        label { display: block; margin-top: 20px; margin-bottom: 5px; font-size: 0.9rem; color: #8b949e; }
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 30px;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background: #2ea043; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Launcher</h1>
+
+        <div class="status-row">
+            <span>Agent Core:</span>
+            <span id="core-status" class="status-ok">Running</span>
+        </div>
+        <div class="status-row">
+            <span>Brain (Ollama):</span>
+            <span id="brain-status">Checking...</span>
+        </div>
+
+        <label>Ngrok Authtoken (Optional for Global Access)</label>
+        <input type="password" id="ngrok-token" placeholder="372eGT...">
+
+        <button onclick="launch()">LAUNCH INTERFACE</button>
+    </div>
+
+    <script>
+        // Check Brain Status
+        fetch('http://localhost:11434/api/tags')
+            .then(res => {
+                if (res.ok) {
+                    document.getElementById('brain-status').innerText = "Online";
+                    document.getElementById('brain-status').className = "status-ok";
+                } else {
+                    throw new Error("Offline");
+                }
+            })
+            .catch(() => {
+                document.getElementById('brain-status').innerText = "Offline";
+                document.getElementById('brain-status').className = "status-err";
+            });
+
+        async function launch() {
+            const token = document.getElementById('ngrok-token').value.trim();
+            if (token) {
+                // Save token via API
+                await fetch('/api/config/ngrok', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token: token})
+                });
+            }
+            // Redirect
+            window.location.href = "/";
+        }
+    </script>
+</body>
+</html>

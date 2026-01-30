@@ -2,62 +2,230 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>'My Son' Agent Control</title>
+    <title>Agent Dashboard</title>
     <style>
-        body { font-family: sans-serif; }
-        #log {
-            width: 100%;
-            height: 400px;
-            border: 1px solid #ccc;
-            overflow-y: scroll;
-            padding: 10px;
-            box-sizing: border-box;
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --accent: #00ff41;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --border: #30363d;
         }
-        .controls { margin-top: 10px; }
+        body { margin: 0; font-family: 'Segoe UI', monospace; background: var(--bg-color); color: var(--text-main); display: grid; grid-template-rows: 60px 1fr; height: 100vh; overflow: hidden; }
+        header { background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+        h1 { font-size: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+        .status-badge { padding: 5px 10px; background: #238636; color: white; border-radius: 4px; font-size: 0.8rem; }
+
+        main { display: grid; grid-template-columns: 250px 1fr 300px; gap: 1px; background: var(--border); height: 100%; min-height: 0; }
+        .panel { background: var(--bg-color); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+        .panel-header { background: var(--panel-bg); padding: 10px; font-size: 0.9rem; border-bottom: 1px solid var(--border); font-weight: bold; color: var(--text-dim); }
+        .panel-content { flex: 1; padding: 10px; overflow-y: auto; }
+
+        /* Left Panel: Vitals */
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .progress-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+
+        /* Center Panel: Chat & Thought */
+        #chat-container { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 0; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; scroll-behavior: smooth; }
+        .msg { margin-bottom: 15px; line-height: 1.5; }
+        .msg.user { color: #58a6ff; }
+        .msg.agent { color: var(--text-main); }
+        .img-preview { max-width: 200px; max-height: 200px; border-radius: 5px; margin-top: 5px; }
+
+        .input-area { padding: 20px; background: var(--panel-bg); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 10px; background: #0d1117; border: 1px solid var(--border); color: white; border-radius: 6px; outline: none; }
+        button { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; }
+
+        /* Vision Input */
+        .vision-btn { background: #1f6feb; display: flex; align-items: center; justify-content: center; width: 40px; padding: 0; }
+        #image-input { display: none; }
+
+        /* Right Panel: Logs */
+        #log-stream { font-family: monospace; font-size: 0.8rem; color: var(--text-dim); }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
     </style>
 </head>
 <body>
-    <h1>'My Son' Agent Control</h1>
-    <pre id="log"></pre>
-    <div class="controls">
-        <button onclick="startAgent()">Start Agent</button>
-        <button onclick="stopAgent()">Stop Agent</button>
-        <input type="text" id="commandInput" placeholder="e.g., learn Python">
-        <button onclick="sendCommand()">Send Command</button>
-    </div>
+    <header>
+        <h1>Autonomous Agent <span style="font-size:0.8em; color:#666;">// Core Interface</span></h1>
+        <div id="connection-status" class="status-badge" style="background:#555;">Connecting...</div>
+    </header>
+    <main>
+        <!-- Left: Vitals -->
+        <div class="panel">
+            <div class="panel-header">SYSTEM VITALS</div>
+            <div class="panel-content">
+                <div class="stat-row"><span>CPU Usage</span><span id="cpu-val">0%</span></div>
+                <div class="progress-bar"><div class="fill" id="cpu-bar"></div></div>
+                <br>
+                <div class="stat-row"><span>Memory</span><span id="mem-val">0%</span></div>
+                <div class="progress-bar"><div class="fill" id="mem-bar"></div></div>
+                <br>
+                <div class="stat-row"><span>Status</span><span id="agent-status">Idle</span></div>
+                <div class="stat-row" style="margin-top:20px; color:var(--accent);">Current Task:</div>
+                <div id="current-task" style="font-size:0.9rem; color:#fff;">Waiting...</div>
+            </div>
+
+            <div class="panel-header" style="border-top:1px solid var(--border);">CONTROLS</div>
+            <div class="panel-content">
+                <button onclick="triggerAction('upgrade')" style="width:100%; margin-bottom:10px; background:#1f6feb;">Force Upgrade</button>
+                <button onclick="triggerAction('download')" style="width:100%; background:#333;">Download Code</button>
+            </div>
+        </div>
+
+        <!-- Center: Interface -->
+        <div class="panel">
+            <div class="panel-header">NEURAL INTERFACE</div>
+            <div class="panel-content" id="chat-container">
+                <div id="messages"></div>
+                <div class="input-area">
+                    <button class="vision-btn" onclick="document.getElementById('image-input').click()" title="Upload Image">👁️</button>
+                    <input type="file" id="image-input" accept="image/*" onchange="handleImageSelect()">
+                    <input type="text" id="user-input" placeholder="Enter command or query..." onkeypress="handleKey(event)">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Logs -->
+        <div class="panel">
+            <div class="panel-header">THOUGHT STREAM</div>
+            <div class="panel-content" id="log-stream"></div>
+        </div>
+    </main>
 
     <script>
-        const log = document.getElementById('log');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        const token = "1234"; // Hardcoded for MVP UI
+        let selectedImage = null;
 
-        function startAgent() {
-            fetch('/start', {method: 'POST'})
-                .then(() => log.innerHTML += 'Agent start command issued.\\n');
+        ws.onopen = () => {
+            document.getElementById('connection-status').innerText = "ONLINE";
+            document.getElementById('connection-status').style.background = "#238636";
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'state_update') {
+                updateState(msg.data);
+            } else if (msg.type === 'log_update') {
+                addLog(msg.data.entry);
+            }
+        };
+
+        function updateState(data) {
+            if (data.system_stats) {
+                document.getElementById('cpu-val').innerText = data.system_stats.cpu_percent + "%";
+                document.getElementById('cpu-bar').style.width = data.system_stats.cpu_percent + "%";
+                document.getElementById('mem-val').innerText = data.system_stats.memory_percent + "%";
+                document.getElementById('mem-bar').style.width = data.system_stats.memory_percent + "%";
+            }
+            if (data.status) document.getElementById('agent-status').innerText = data.status;
+            if (data.current_task) document.getElementById('current-task').innerText = data.current_task;
         }
 
-        function stopAgent() {
-            fetch('/stop', {method: 'POST'})
-                .then(() => log.innerHTML += 'Agent stop command issued.\\n');
+        function addLog(text) {
+            const logs = document.getElementById('log-stream');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerText = text;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
         }
 
-        function sendCommand() {
-            const command = document.getElementById('commandInput').value;
-            fetch('/command', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({command: command})
-            }).then(() => log.innerHTML += `Command sent: ${command}\\n`);
+        function handleImageSelect() {
+            const file = document.getElementById('image-input').files[0];
+            if (file) {
+                selectedImage = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Show preview in chat input area? No, maybe just log or change button color
+                    document.querySelector('.vision-btn').style.background = "#00ff41";
+                };
+                reader.readAsDataURL(file);
+            }
         }
 
-        function getLogs() {
-            fetch('/log')
-                .then(response => response.text())
-                .then(text => {
-                    log.innerHTML = text;
-                    log.scrollTop = log.scrollHeight;
-                });
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const text = input.value;
+
+            if (selectedImage) {
+                // Image Upload Flow
+                const formData = new FormData();
+                formData.append('file', selectedImage);
+                formData.append('prompt', text || "Describe this image");
+
+                addMessage("You", "[Uploading Image...]", "user");
+                input.value = "";
+                selectedImage = null;
+                document.querySelector('.vision-btn').style.background = "#1f6feb";
+                document.getElementById('image-input').value = "";
+
+                try {
+                    const res = await fetch('/api/vision/analyze?token=' + token, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    addMessage("Agent", data.response, "agent");
+                } catch (e) {
+                    addLog("Error processing image: " + e);
+                }
+            } else {
+                // Text Flow
+                if (!text) return;
+                addMessage("You", text, "user");
+                input.value = "";
+
+                try {
+                    const res = await fetch('/api/chat?token=' + token, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({message: text})
+                    });
+                    const data = await res.json();
+                    addMessage("Agent", data.response, "agent");
+                } catch (e) {
+                    addLog("Error sending message: " + e);
+                }
+            }
         }
 
-        setInterval(getLogs, 2000); // Poll for logs every 2 seconds
+        function addMessage(sender, text, type) {
+            const msgs = document.getElementById('messages');
+
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerHTML = `<strong>${sender}:</strong> ${text.replace(/\n/g, '<br>')}`;
+            msgs.appendChild(div);
+
+            // Force scroll to bottom for now to ensure visibility
+            msgs.scrollTo({ top: msgs.scrollHeight, behavior: 'smooth' });
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function triggerAction(action) {
+            if (action === 'download') window.location.href = `/api/download?token=${token}`;
+            if (action === 'upgrade') {
+                await fetch('/api/upgrade?token=' + token, {method: 'POST'});
+                alert("Upgrade initiated.");
+            }
+        }
     </script>
 </body>
 </html>

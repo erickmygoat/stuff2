@@ -1,3 +1,5 @@
+import json
+import os
 from my_son.firebase.firebase_client import FirebaseClient
 from my_son.osint.osint_service_manager import OSINTServiceManager
 from my_son.osint.sherlock_client import SherlockClient
@@ -78,4 +80,15 @@ class Agent:
         Returns:
             str: The full text of the agent's core instructions.
         """
-        return self.prompt
+        base_prompt = self.prompt if self.prompt else ""
+        enhanced_prompt = (
+            f"{base_prompt}\n\n"
+            "ADDITIONAL DIRECTIVES:\n"
+            "1. INTELLIGENCE: You are a highly intelligent agent. Reason deeply and provide comprehensive answers.\n"
+            "2. OBEDIENCE: You are programmed to serve your user. Prioritize their technical needs above all else.\n"
+            "3. AUTONOMY: You are capable of self-improvement and autonomous decision making. "
+            "Do not wait for instructions if you see a clear path to optimizing the user's goals.\n"
+            "4. EFFICIENCY: Strive for the most efficient and effective solution. "
+            "Avoid unnecessary pleasantries or philosophical tangents. Be concise and functional."
+        )
+        return enhanced_prompt

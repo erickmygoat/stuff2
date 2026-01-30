@@ -1,22 +1,29 @@
-import asyncio
-from my_son.firebase.firebase_client import FirebaseClient
-from my_son.agent.agent import Agent
-from my_son.conversational.conversational_engine import ConversationalEngine
+import uvicorn
+import os
+import sys
 
-async def main():
+def main():
     """
-    The main entry point for the 'My Son' agent.
+    Entry point for the My Son Agent Web Server.
     """
-    print("Starting agent...")
+    # Ensure project root is in sys.path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
 
-    # Initialize Firebase and Agent
-    firebase_client = FirebaseClient()
-    # TODO: Get the user_id from a secure source.
-    agent = Agent(user_id="test_user", firebase_client=firebase_client)
+    # Inject PYTHONPATH for subprocesses
+    os.environ["PYTHONPATH"] = current_dir + os.pathsep + os.environ.get("PYTHONPATH", "")
 
-    # Start the conversational engine
-    conversational_engine = ConversationalEngine(agent)
-    await conversational_engine.start_conversation()
+    print("Starting My Son Agent Server...")
+
+    # Run Uvicorn with explicit app_dir to fix Windows reload issues
+    uvicorn.run(
+        "my_son.server:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        app_dir=current_dir # CRITICAL FIX for Windows/Uvicorn import errors
+    )
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
